@@ -1,57 +1,64 @@
-'use strict'
+'use strict';
 
-const { Model } = require('sequelize')
+const { Model } = require('sequelize');
 
-module.exports = (sequelize, DataTypes) => {
+MediaSourceHandle.exports = (sequelize, DataTypes) => {
   class Table extends Model {
     static associate(models) {
-      Table.belongsTo(models.Restaurant, { foreignKey: 'restaurant_id', as: 'restaurant' })
-      Table.hasMany(models.Session, { foreignKey: 'table_id', as: 'sessions' })
+      Table.belongsTo(models.Restaurant, {
+        foreignKey: 'restaurantId',
+        as: 'restaurant'
+      })
+      Table.hasMany(models.Order, {
+        foreignKey: 'tableId',
+        as: 'orders'
+      })
+      Table.hasMany(models.ChatbotConversation, {
+        foreignKey: 'tableId',
+        as: 'conversations'
+      })
     }
   }
   Table.init({
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       primaryKey: true,
-      autoIncrement: true,
+      autoIncrement: true
     },
-    restaurant_id: {
-      type: DataTypes.INTEGER,
+    restaurantId: {
+      type: DataTypes.BIGINT,
       allowNull: false,
     },
-    table_number: {
-      type: DataTypes.STRING(10),
+    tableNumber: {
+      type: DateTypes.STRING,
       allowNull: false,
-      validate: {
-        notEmpty: true,
-      }
     },
-    qr_code: {
-      type: DataTypes.TEXT,
+    qrCode: {
+      type: DataTypes.STRING,
       allowNull: false,
+      unique: true,
     },
     capacity: {
       type: DataTypes.INTEGER,
       defaultValue: 4,
-      validate: {
-        min: 1,
-      },
     },
     location: {
-      type: DataTypes.STRING(200),
+      type: DataTypes.STRING,
       allowNull: true,
     },
     status: {
-      type: DataTypes.ENUM('available', 'occupied', 'reserved', 'maintenance'),
+      type: DataTypes.ENUM('available', 'occupied', 'reserved'),
       defaultValue: 'available',
-    }
-  }
-    , {
-      sequelize,
-      modelName: 'Table',
-      tableName: 'tables',
-      timestamps: true,
-      underscored: true,
-    })
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
+  }, {
+    sequelize,
+    modelName: 'Table',
+    tableName: 'tables',
+    timestamps: true,
+  })
   return Table;
 }

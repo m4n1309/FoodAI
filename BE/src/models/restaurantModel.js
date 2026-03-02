@@ -1,65 +1,111 @@
-'use strict'
+'use strict';
 
-const { Model, DataTypes } = require('sequelize');
+const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
   class Restaurant extends Model {
     static associate(models) {
-      Restaurant.hasMany(models.Table, { foreignKey: 'restaurant_id', as: 'tables' });
+      Restaurant.hasMany(models.Table, {
+        foreignKey: 'restaurantId',
+        as: 'tables'
+      })
+      Restaurant.hasMany(models.Category, {
+        foreignKey: 'restaurantId',
+        as: 'categories'
+      })
+      Restaurant.hasMany(models.MenuItem, {
+        foreignKey: 'restaurantId',
+        as: 'menuItems'
+      })
+      Restaurant.hasMany(models.Combo, {
+        foreignKey: 'restaurantId',
+        as: 'combos'
+      })
+      Restaurant.hasMany(models.Staff, {
+        foreignKey: 'restaurantId',
+        as: 'staffs'
+      })
+      Restaurant.hasMany(models.Order, {
+        foreignKey: 'restaurantId',
+        as: 'orders'
+      })
+      Restaurant.hasMany(models.Review, {
+        foreignKey: 'restaurantId',
+        as: 'reviews'
+      })
+      Restaurant.hasMany(models.Promotion, {
+        foreignKey: 'restaurantId',
+        as: 'promotions'
+      })
+      Restaurant.hasMany(models.Notification, {
+        foreignKey: 'restaurantId',
+        as: 'notifications'
+      })
+      Restaurant.hasMany(models.RevenueReport, {
+        foreignKey: 'restaurantId',
+        as: 'revenueReports'
+      })
+      Restaurant.hasMany(models.ActivityLog, {
+        foreignKey: 'restaurantId',
+        as: 'activityLogs'
+      })
     }
   }
-}
-
-Restaurant.init({
-  id: {
-    type: DataTypes.INTEGER,
-    autoIncrement: true,
-    primaryKey: true
-  },
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      notEmpty: { msg: 'Restaurant name cannot be empty' },
+  Restaurant.init({
+    id: {
+      type: DataTypes.BIGINT,
+      primaryKey: true,
+      autoIncrement: true
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    address: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    phone: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    email: {
+      type: DataTypes.STRING,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    openingHours: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    logoUrl: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true
+    },
+    taxRate: {
+      type: DataTypes.DECIMAL(5, 2),
+      defaultValue: 0.00,
+    },
+    serviceChangeRate: {
+      type: DataTypes.DECIMAL(5, 2),
+      defaultValue: 0.00,
+    },
+    bankInfo: {
+      type: DataTypes.JSON,
+      allowNull: true,
     },
   },
-  address: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      notEmpty: { msg: 'Restaurant address cannot be empty' },
-    }
-  },
-  phone: {
-    type: DataTypes.STRING(20),
-    allowNull: true,
-  },
-  email: {
-    type: DataTypes.STRING(100),
-    allowNull: true,
-    validate: {
-      isEmail: { msg: 'Invalid email format' },
-    }
-  },
-  description: {
-    type: DataTypes.TEXT,
-    allowNull: true,
-  },
-  logo_url: {
-    type: DataTypes.STRING(255),
-    allowNull: true,
-  },
-  opening_hours: {
-    type: DataTypes.JSON,
-    allowNull: true,
-  },
-},
-  {
-    sequelize,
-    modelName: 'Restaurant',
-    tableName: 'restaurants',
-    underscored: true,
-    timestamps: true,
-  }
-);
-return Restaurant;
+    {
+      sequelize,
+      modelName: 'Restaurant',
+      tableName: 'restaurants',
+      timestamps: true,
+    })
+  return Restaurant;
+}

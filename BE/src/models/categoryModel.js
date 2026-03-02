@@ -1,56 +1,59 @@
-'use strict'
+'use strict';
 
-const { Model } = require('sequelize')
+const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
   class Category extends Model {
     static associate(models) {
-      Category.hasMany(models.Dish, {
-        foreignKey: 'category_id',
-        as: 'dishes'
+      Category.belongsTo(models.Restaurant, {
+        foreignKey: 'restaurantId',
+        as: 'restaurant'
+      })
+      Category.hasMany(models.MenuItem, {
+        foreignKey: 'categoryId',
+        as: 'menuItems'
       })
     }
   }
   Category.init({
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       primaryKey: true,
-      autoIncrement: true,
+      autoIncrement: true
+    },
+    restaurantId: {
+      type: DataTypes.BIGINT,
+      allowNull: false,
     },
     name: {
-      type: DataTypes.STRING(100),
+      type: DataTypes.STRING,
       allowNull: false,
-      validate: {
-        notEmpty: { msg: 'Category name cannot be empty' },
-      }
     },
-    name_en: {
-      type: DataTypes.STRING(100),
-      allowNull: true,
+    slug: {
+      type: DataTypes.STRING,
+      allowNull: false,
     },
     description: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    icon: {
-      type: DataTypes.STRING(255),
+    imageUrl: {
+      type: DataTypes.STRING,
       allowNull: true,
     },
-    display_order: {
+    displayOrder: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
     },
-    is_active: {
+    isActive: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
-    }
-  },
-  {
+    },
+  }, {
     sequelize,
     modelName: 'Category',
     tableName: 'categories',
     timestamps: true,
-    underscored: true,
   })
   return Category;
 }
