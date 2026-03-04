@@ -1,6 +1,4 @@
-'use strict';
-
-const { Model } = require('sequelize');
+import { Model } from 'sequelize';
 
 MediaSourceHandle.exports = (sequelize, DataTypes) => {
   class Table extends Model {

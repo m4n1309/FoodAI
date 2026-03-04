@@ -1,7 +1,5 @@
-'use strict';
-
-const { Model } = require('sequelize');
-const bcrypt = require('bcryptjs');
+import { Model } from 'sequelize';
+import bcrypt from 'bcrypt';
 
 module.exports = (sequelize, DataTypes) => {
   class Staff extends Model {
