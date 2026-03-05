@@ -28,7 +28,7 @@ const Table = (sequelize, DataTypes) => {
       allowNull: false,
     },
     tableNumber: {
-      type: DateTypes.STRING,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     qrCode: {
@@ -57,6 +57,7 @@ const Table = (sequelize, DataTypes) => {
     modelName: 'Table',
     tableName: 'tables',
     timestamps: true,
+    underscored: true,
   })
   return Table;
 }

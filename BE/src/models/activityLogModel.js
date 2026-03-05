@@ -62,6 +62,7 @@ const ActivityLog = (sequelize, DataTypes) => {
     modelName: 'ActivityLog',
     tableName: 'activity_logs',
     timestamps: true,
+    underscored: true,
   });
   return ActivityLog;
 };

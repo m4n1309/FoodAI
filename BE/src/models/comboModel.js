@@ -68,6 +68,7 @@ const Combo = (sequelize, DataTypes) => {
     modelName: 'Combo',
     tableName: 'combos',
     timestamps: true,
+    underscored: true,
   });
   return Combo;
 };

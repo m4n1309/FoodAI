@@ -52,8 +52,9 @@ const syncDatabase = async (options = {}) => {
   }
 }
 
-export default {
-  sequelize,
+export default sequelize;
+
+export {
   connectDB,
   syncDatabase
 };

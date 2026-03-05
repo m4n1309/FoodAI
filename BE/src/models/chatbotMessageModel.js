@@ -51,6 +51,7 @@ const ChatbotMessage = (sequelize, DataTypes) => {
     modelName: 'ChatbotMessage',
     tableName: 'chatbot_messages',
     timestamps: true,
+    underscored: true,
   });
   return ChatbotMessage;
 };

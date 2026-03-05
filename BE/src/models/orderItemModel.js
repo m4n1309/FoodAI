@@ -88,6 +88,7 @@ const OrderItem = (sequelize, DataTypes) => {
     modelName: 'OrderItem',
     tableName: 'order_items',
     timestamps: true,
+    underscored: true,
   });
   return OrderItem;
 };

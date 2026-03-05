@@ -66,6 +66,7 @@ const Customer = (sequelize, DataTypes) => {
     modelName: 'Customer',
     tableName: 'customers',
     timestamps: true,
+    underscored: true,
   });
   return Customer;
 };

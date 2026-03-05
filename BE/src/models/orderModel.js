@@ -148,6 +148,7 @@ const Order = (sequelize, DataTypes) => {
     modelName: 'Order',
     tableName: 'orders',
     timestamps: true,
+    underscored: true,
   });
   return Order;
 };

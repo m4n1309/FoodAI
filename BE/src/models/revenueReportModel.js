@@ -68,6 +68,7 @@ const RevenueReport = (sequelize, DataTypes) => {
     modelName: 'RevenueReport',
     tableName: 'revenue_reports',
     timestamps: true,
+    underscored: true,
   });
   return RevenueReport;
 };

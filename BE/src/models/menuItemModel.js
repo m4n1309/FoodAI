@@ -103,6 +103,7 @@ const MenuItem = (sequelize, DataTypes) => {
     modelName: 'MenuItem',
     tableName: 'menu_items',
     timestamps: true,
+    underscored: true,
   })
   return MenuItem;
 }

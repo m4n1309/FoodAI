@@ -89,7 +89,7 @@ const Restaurant = (sequelize, DataTypes) => {
       type: DataTypes.DECIMAL(5, 2),
       defaultValue: 0.00,
     },
-    serviceChangeRate: {
+    serviceChargeRate: {
       type: DataTypes.DECIMAL(5, 2),
       defaultValue: 0.00,
     },
@@ -103,6 +103,7 @@ const Restaurant = (sequelize, DataTypes) => {
       modelName: 'Restaurant',
       tableName: 'restaurants',
       timestamps: true,
+      underscored: true,
     })
   return Restaurant;
 }

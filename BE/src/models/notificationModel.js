@@ -67,6 +67,7 @@ const Notification = (sequelize, DataTypes) => {
     modelName: 'Notification',
     tableName: 'notifications',
     timestamps: true,
+    underscored: true,
   });
   return Notification;
 };

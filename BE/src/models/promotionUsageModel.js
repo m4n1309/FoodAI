@@ -48,6 +48,7 @@ const PromotionUsage = (sequelize, DataTypes) => {
     modelName: 'PromotionUsage',
     tableName: 'promotion_usage',
     timestamps: false,
+    underscored: true,
   });
   return PromotionUsage;
 };

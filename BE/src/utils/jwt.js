@@ -1,18 +1,19 @@
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const generateAccessToken = (payload) => {
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+  const expiresIn = process.env.JWT_EXPIRES_IN || '15m';
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 }
 
-const generateRefreshToken = () => {
-  return crypto.randomBytes(64).toString('hex');
+const generateRefreshToken = (payload) => {
+  const expiresIn = process.env.JWT_REFRESH_EXPIRE || '7d';
+  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn });
 }
 
-const verifyAccesssToken = (token) => {
+const verifyAccessToken = (token) => {
   try {
     return jwt.verify(token, process.env.JWT_SECRET);
   } catch (error) {
@@ -26,10 +27,16 @@ const verifyAccesssToken = (token) => {
 }
 
 const verifyRefreshToken = (token, storedToken) => {
-  if (token !== storedToken) {
-    throw new Error('Invalid refresh token');
+  try {
+    return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      throw new Error('Refresh token expired');
+    } else {
+      throw new Error('Invalid refresh token');
+    }
+    throw error;
   }
-  return true;
 }
 
 const extractTokenFromHeader = (header) => {
@@ -46,7 +53,7 @@ const extractTokenFromHeader = (header) => {
 export {
   generateAccessToken,
   generateRefreshToken,
-  verifyAccesssToken,
+  verifyAccessToken,
   verifyRefreshToken,
   extractTokenFromHeader
 }

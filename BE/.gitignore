@@ -1,2 +1,59 @@
-node_moduules
+# Node.js / npm
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+package-lock.json   # nếu dùng yarn thì ignore ngược lại
+yarn.lock           # nếu dùng npm thì ignore ngược lại
+
+# Logs / temp files
+*.log
+*.logs
+*.log.*
+logs/
+tmp/
+temp/
+
+# Environment variables (rất quan trọng!)
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build / dist
+dist/
+build/
+out/
+
+# Editor / IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store   # macOS
+Thumbs.db   # Windows
+
+# Database backups / dump
+*.sql.bak
+*.sql.gz
+dump.sql
+backup.sql
+
+# Sequelize migrations / seeds (nếu không muốn commit)
+migrations/
+seeders/
+
+# File cá nhân / test
+test/
+__tests__/
+coverage/
+
+# File lớn / binary
+*.zip
+*.tar.gz
+*.rar
+*.pdf
+*.jpg
+*.png
+*.mp4

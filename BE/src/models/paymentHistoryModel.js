@@ -58,6 +58,7 @@ const PaymentHistory = (sequelize, DataTypes) => {
     modelName: 'PaymentHistory',
     tableName: 'payment_history',
     timestamps: true,
+    underscored: true,
   });
   return PaymentHistory;
 };

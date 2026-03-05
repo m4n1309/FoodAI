@@ -42,6 +42,7 @@ const Session = (sequelize, DataTypes) => {
     modelName: 'Session',
     tableName: 'sessions',
     timestamps: true,
+    underscored: true,
   });
 
   return Session;

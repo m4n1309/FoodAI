@@ -95,6 +95,7 @@ const Staff = (sequelize, DataTypes) => {
     modelName: 'Staff',
     tableName: 'staff',
     timestamps: true,
+    underscored: true,
     hooks: {
       beforeCreate: async (staff) => {
         if (staff.passwordHash) {

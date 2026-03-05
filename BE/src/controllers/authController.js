@@ -1,4 +1,4 @@
-import  db  from '../models/index.js';
+import db from '../models/index.js';
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -7,15 +7,12 @@ import {
 import {
   successResponse,
   unauthorizedResponse,
-  notFoundResponse
+  notFoundResponse,
+  errorResponse
 } from '../utils/ResponseHelper.js';
-import statusCode from 'http-status-codes';
+import { StatusCodes } from 'http-status-codes';
 
 const REFRESH_TOKEN_EXPIRATION_DAYS = 14 * 24 * 60 * 60 * 1000;
-
-const signUp = async (req, res) => {
-  
-}
 
 const login = async (req, res) => {
   try {
@@ -24,7 +21,7 @@ const login = async (req, res) => {
     const staff = await db.Staff.findOne({
       where: { username },
       include: [{
-        models: db.Restaurant,
+        model: db.Restaurant,
         as: 'restaurant',
         attributes: ['id', 'name', 'slug', 'isActive']
       }]
@@ -47,7 +44,7 @@ const login = async (req, res) => {
       role: staff.role
     }
     const accessToken = generateAccessToken(tokenPayload);
-    const refreshToken = generateRefreshToken();
+    const refreshToken = generateRefreshToken(tokenPayload);
 
     const session = await db.Session.create({
       staffId: staff.id,
@@ -75,7 +72,7 @@ const login = async (req, res) => {
 
   } catch (error) {
     console.error('Login error:', error);
-    return errorResponse(res, 'An error occurred during login', statusCode.INTERNAL_SERVER_ERROR);
+    return errorResponse(res, 'An error occurred during login', StatusCodes.INTERNAL_SERVER_ERROR);
   }
 }
 
@@ -99,13 +96,22 @@ const logout = async (req, res) => {
     return successResponse(res, null, 'Logout successful');
   } catch (error) {
     console.error('Logout error:', error);
-    return errorResponse(res, 'An error occurred during logout', statusCode.INTERNAL_SERVER_ERROR);
+    return errorResponse(res, 'An error occurred during logout', StatusCodes.INTERNAL_SERVER_ERROR);
   }
 }
 
 const refreshAccessToken = async (req, res) => {
   try {
-    const { refreshToken } = req.cookies?.refreshToken || req.body.refreshToken
+    console.log('🔄 Refresh token request');
+    console.log('   Cookies:', req.cookies);
+    console.log('   Body:', req.body);
+
+    // ✅ SỬA: Kiểm tra kỹ trước khi lấy giá trị
+    const refreshToken = 
+      (req.cookies && req.cookies.refreshToken) || 
+      (req.body && req.body.refreshToken);
+
+    console.log('   RefreshToken extracted:', refreshToken ? 'Yes' : 'No');
     if (!refreshAccessToken) {
       return unauthorizedResponse(res, 'No refresh token provided');
     }
@@ -164,18 +170,18 @@ const refreshAccessToken = async (req, res) => {
     }, 'Access token refreshed successfully');
   } catch (error) {
     console.error('Refresh token error:', error);
-    return errorResponse(res, 'An error occurred while refreshing access token', statusCode.INTERNAL_SERVER_ERROR);
+    return errorResponse(res, 'An error occurred while refreshing access token', StatusCodes.INTERNAL_SERVER_ERROR);
   }
 }
 
 const getCurStaff = async (req, res) => {
   try {
-    const staff = await db.staff.findByPk(req.staff.id, {
+    const staff = await db.Staff.findByPk(req.staff.id, {
       attributes: { exclude: ['passwordHash'] },
       include: [{
         model: db.Restaurant,
         as: 'restaurant',
-        attributes: ['id', 'name', 'slug', 'address', 'phone', 'email', 'avatar']
+        attributes: ['id', 'name', 'slug', 'address', 'phone', 'email', 'logoUrl']
       }]
     })
     if (!staff) {
@@ -184,7 +190,7 @@ const getCurStaff = async (req, res) => {
     return successResponse(res, staff, 'Current staff retrieved successfully');
   } catch (error) {
     console.error('Get current staff error:', error);
-    return errorResponse(res, 'An error occurred while retrieving current staff', statusCode.INTERNAL_SERVER_ERROR);
+    return errorResponse(res, 'An error occurred while retrieving current staff', StatusCodes.INTERNAL_SERVER_ERROR);
   }
 }
 
@@ -195,13 +201,13 @@ const getSessions = async (req, res) => {
         staffId: req.staff.id,
         expiresAt: { [db.Sequelize.Op.gt]: new Date() }
       },
-      attributes: ['id', 'refreshToken', 'expiresAt', 'createdAt'],
-      order: [['createdAt', 'DESC']]
+      attributes: ['id', 'refreshToken', 'expiresAt', 'created_at'],
+      order: [['created_at', 'DESC']]
     })
     return successResponse(res, sessions, 'Sessions retrieved successfully');
   } catch (error) {
     console.error('Get sessions error:', error);
-    return errorResponse(res, 'An error occurred while retrieving sessions', statusCode.INTERNAL_SERVER_ERROR);
+    return errorResponse(res, 'An error occurred while retrieving sessions', StatusCodes.INTERNAL_SERVER_ERROR);
   }
 }
 
@@ -221,11 +227,11 @@ const revokeSession = async (req, res) => {
     return successResponse(res, null, 'Session revoked successfully');
   } catch (error) {
     console.error('Revoke session error:', error);
-    return errorResponse(res, 'An error occurred while revoking session', statusCode.INTERNAL_SERVER_ERROR);
+    return errorResponse(res, 'An error occurred while revoking session', StatusCodes.INTERNAL_SERVER_ERROR);
   }
 }
 
-export default{
+export default {
   login,
   logout,
   refreshAccessToken,
