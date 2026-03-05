@@ -16,7 +16,7 @@ const handleValidationErrors = (req, res, next) => {
   next();
 }
 
-const validateSignIn = [
+const validateLogin = [
   validationResult.body('username')
     .notEmpty().withMessage('Username is required')
     .isLength({ min: 3 }).withMessage('Username must be at least 3 characters long'),
@@ -33,6 +33,6 @@ const validateRefreshToken = [
 ]
 
 export {
-  validateSignIn,
+  validateLogin,
   validateRefreshToken
 }

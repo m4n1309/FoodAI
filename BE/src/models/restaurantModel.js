@@ -1,6 +1,5 @@
 import { Model } from 'sequelize';
-
-module.exports = (sequelize, DataTypes) => {
+const Restaurant = (sequelize, DataTypes) => {
   class Restaurant extends Model {
     static associate(models) {
       Restaurant.hasMany(models.Table, {
@@ -107,3 +106,4 @@ module.exports = (sequelize, DataTypes) => {
     })
   return Restaurant;
 }
+export default Restaurant;

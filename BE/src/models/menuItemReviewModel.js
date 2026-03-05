@@ -1,6 +1,6 @@
 import { Model } from 'sequelize';
 
-module.exports = (sequelize, DataTypes) => {
+const MenuItemReview = (sequelize, DataTypes) => {
   class MenuItemReview extends Model {
     static associate(models) {
       MenuItemReview.belongsTo(models.MenuItem, {
@@ -57,3 +57,4 @@ module.exports = (sequelize, DataTypes) => {
   });
   return MenuItemReview;
 };
+export default MenuItemReview;

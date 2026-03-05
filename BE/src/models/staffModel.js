@@ -1,7 +1,7 @@
 import { Model } from 'sequelize';
 import bcrypt from 'bcrypt';
 
-module.exports = (sequelize, DataTypes) => {
+const Staff = (sequelize, DataTypes) => {
   class Staff extends Model {
     static associate(models) {
       Staff.belongsTo(models.Restaurant, {
@@ -112,3 +112,4 @@ module.exports = (sequelize, DataTypes) => {
   });
   return Staff;
 };
+export default Staff;

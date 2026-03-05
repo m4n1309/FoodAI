@@ -1,6 +1,7 @@
 import { Sequelize } from 'sequelize';
 
 import dotenv from 'dotenv';
+dotenv.config();
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -10,7 +11,7 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     dialect: 'mysql',
-    
+
     pool: {
       max: 5,
       min: 0,
@@ -18,7 +19,7 @@ const sequelize = new Sequelize(
       idle: 10000
     },
 
-    logging : process.env.NODE_ENV === 'development' ? console.log : false,
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
 
     timezone: '+07:00',
 
@@ -30,8 +31,7 @@ const sequelize = new Sequelize(
     }
   }
 );
-
-async function testDatabaseConnection() {
+const connectDB = async () => {
   try {
     await sequelize.authenticate();
     console.log('Database connecttion successfully.');
@@ -41,7 +41,7 @@ async function testDatabaseConnection() {
   }
 }
 
-async function syncDatabase( options = {}) {
+const syncDatabase = async (options = {}) => {
   try {
     if (process.env.NODE_ENV === 'development') {
       await sequelize.sync(options);
@@ -52,8 +52,8 @@ async function syncDatabase( options = {}) {
   }
 }
 
-module.exports = {
+export default {
   sequelize,
-  testDatabaseConnection,
+  connectDB,
   syncDatabase
 };

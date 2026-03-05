@@ -1,6 +1,6 @@
 import { Model } from 'sequelize';
 
-module.exports = (sequelize, DataTypes) => {
+const Session = (sequelize, DataTypes) => {
   class Session extends Model {
     static associate(models) {
       Session.belongsTo(models.Staff, {
@@ -46,3 +46,4 @@ module.exports = (sequelize, DataTypes) => {
 
   return Session;
 };
+export default Session;

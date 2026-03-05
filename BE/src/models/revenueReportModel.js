@@ -1,6 +1,6 @@
 import { Model } from 'sequelize';
 
-module.exports = (sequelize, DataTypes) => {
+const RevenueReport = (sequelize, DataTypes) => {
   class RevenueReport extends Model {
     static associate(models) {
       RevenueReport.belongsTo(models.Restaurant, {
@@ -71,3 +71,4 @@ module.exports = (sequelize, DataTypes) => {
   });
   return RevenueReport;
 };
+export default RevenueReport;

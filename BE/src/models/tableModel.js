@@ -1,6 +1,6 @@
 import { Model } from 'sequelize';
 
-MediaSourceHandle.exports = (sequelize, DataTypes) => {
+const Table = (sequelize, DataTypes) => {
   class Table extends Model {
     static associate(models) {
       Table.belongsTo(models.Restaurant, {
@@ -60,3 +60,5 @@ MediaSourceHandle.exports = (sequelize, DataTypes) => {
   })
   return Table;
 }
+
+export default Table;

@@ -1,6 +1,6 @@
 import { Model } from 'sequelize';
 
-module.exports = (sequelize, DataTypes) => {
+const Category = (sequelize, DataTypes) => {
   class Category extends Model {
     static associate(models) {
       Category.belongsTo(models.Restaurant, {
@@ -55,3 +55,5 @@ module.exports = (sequelize, DataTypes) => {
   })
   return Category;
 }
+
+export default Category;

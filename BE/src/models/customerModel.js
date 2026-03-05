@@ -1,6 +1,6 @@
 import { Model } from 'sequelize';
 
-module.exports = (sequelize, DataTypes) => {
+const Customer = (sequelize, DataTypes) => {
   class Customer extends Model {
     static associate(models) {
       Customer.hasMany(models.Order, {
@@ -69,3 +69,4 @@ module.exports = (sequelize, DataTypes) => {
   });
   return Customer;
 };
+export default Customer;

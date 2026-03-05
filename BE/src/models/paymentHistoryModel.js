@@ -1,6 +1,6 @@
 import { Model } from 'sequelize';
 
-module.exports = (sequelize, DataTypes) => {
+const PaymentHistory = (sequelize, DataTypes) => {
   class PaymentHistory extends Model {
     static associate(models) {
       PaymentHistory.belongsTo(models.Order, {
@@ -61,3 +61,4 @@ module.exports = (sequelize, DataTypes) => {
   });
   return PaymentHistory;
 };
+export default PaymentHistory;

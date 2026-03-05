@@ -1,6 +1,6 @@
 import { Model } from 'sequelize';
 
-module.exports = (sequelize, DataTypes) => {
+const ChatbotMessage = (sequelize, DataTypes) => {
   class ChatbotMessage extends Model {
     static associate(models) {
       ChatbotMessage.belongsTo(models.ChatbotConversation, {
@@ -54,3 +54,4 @@ module.exports = (sequelize, DataTypes) => {
   });
   return ChatbotMessage;
 };
+export default ChatbotMessage;
