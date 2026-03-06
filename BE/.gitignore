@@ -3,7 +3,7 @@ node_modules/
 npm-debug.log
 yarn-error.log
 yarn-debug.log
-package-lock.json   # nếu dùng yarn thì ignore ngược lại
+# nếu dùng yarn thì ignore ngược lại
 yarn.lock           # nếu dùng npm thì ignore ngược lại
 
 # Logs / temp files
@@ -40,20 +40,11 @@ Thumbs.db   # Windows
 dump.sql
 backup.sql
 
-# Sequelize migrations / seeds (nếu không muốn commit)
-migrations/
-seeders/
 
 # File cá nhân / test
-test/
-__tests__/
 coverage/
 
 # File lớn / binary
 *.zip
 *.tar.gz
 *.rar
-*.pdf
-*.jpg
-*.png
-*.mp4

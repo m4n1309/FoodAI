@@ -12,8 +12,6 @@ import {
 } from '../utils/ResponseHelper.js';
 import { StatusCodes } from 'http-status-codes';
 
-const REFRESH_TOKEN_EXPIRATION_DAYS = 14 * 24 * 60 * 60 * 1000;
-
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -49,7 +47,7 @@ const login = async (req, res) => {
     const session = await db.Session.create({
       staffId: staff.id,
       refreshToken,
-      expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_DAYS)
+      expiresAt: new Date(Date.now() + parseInt(process.env.REFRESH_TOKEN_EXPIRATION_DAYS) * 24 * 60 * 60 * 1000)
     })
 
     await staff.update({ lastLogin: new Date() });
@@ -58,7 +56,7 @@ const login = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',
-      maxAge: REFRESH_TOKEN_EXPIRATION_DAYS
+      maxAge: parseInt(process.env.REFRESH_TOKEN_EXPIRATION_DAYS) * 24 * 60 * 60 * 1000
     })
 
     const staffData = staff.toJSON()
@@ -106,7 +104,6 @@ const refreshAccessToken = async (req, res) => {
     console.log('   Cookies:', req.cookies);
     console.log('   Body:', req.body);
 
-    // ✅ SỬA: Kiểm tra kỹ trước khi lấy giá trị
     const refreshToken = 
       (req.cookies && req.cookies.refreshToken) || 
       (req.body && req.body.refreshToken);
