@@ -47,7 +47,7 @@ const login = async (req, res) => {
     const session = await db.Session.create({
       staffId: staff.id,
       refreshToken,
-      expiresAt: new Date(Date.now() + parseInt(process.env.REFRESH_TOKEN_EXPIRATION_DAYS) * 24 * 60 * 60 * 1000)
+      expiresAt: new Date(Date.now() + parseInt(process.env.JWT_REFRESH_EXPIRE) * 24 * 60 * 60 * 1000)
     })
 
     await staff.update({ lastLogin: new Date() });
@@ -56,7 +56,7 @@ const login = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',
-      maxAge: parseInt(process.env.REFRESH_TOKEN_EXPIRATION_DAYS) * 24 * 60 * 60 * 1000
+      maxAge: parseInt(process.env.JWT_REFRESH_EXPIRE) * 24 * 60 * 60 * 1000
     })
 
     const staffData = staff.toJSON()
