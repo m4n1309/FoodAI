@@ -16,6 +16,30 @@ const Table = (sequelize, DataTypes) => {
         as: 'conversations'
       })
     }
+    async isOccupied() {
+      const Order = sequelize.models.Order;
+      const activeOrder = await Order.findOne({
+        where: {
+          tableId: this.id,
+          orderStatus: {
+            [sequelize.Sequelize.Op.notIn]: ['completed', 'cancelled', 'cart']
+          }
+        }
+      });
+      return !!activeOrder;
+    }
+    async getCurrentOrder() {
+      const Order = sequelize.models.Order;
+      return await Order.findOne({
+        where: {
+          tableId: this.id,
+          orderStatus: {
+            [sequelize.Sequelize.Op.notIn]: ['completed', 'cancelled']
+          }
+        },
+        order: [['createdAt', 'DESC']]
+      });
+    }
   }
   Table.init({
     id: {
@@ -45,7 +69,7 @@ const Table = (sequelize, DataTypes) => {
       allowNull: true,
     },
     status: {
-      type: DataTypes.ENUM('available', 'occupied', 'reserved'),
+      type: DataTypes.ENUM('available', 'occupied', 'reserved', 'maintenance'),
       defaultValue: 'available',
     },
     isActive: {
@@ -58,6 +82,16 @@ const Table = (sequelize, DataTypes) => {
     tableName: 'tables',
     timestamps: true,
     underscored: true,
+    indexes: [
+      { fields: ['restaurant_id'] },
+      { fields: ['qr_code'], unique: true },
+      { fields: ['status'] },
+      { 
+        fields: ['restaurant_id', 'table_number'],
+        unique: true,
+        name: 'unique_table'
+      }
+    ]
   })
   return Table;
 }
