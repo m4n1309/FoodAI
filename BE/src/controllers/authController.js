@@ -52,20 +52,23 @@ const login = async (req, res) => {
 
     await staff.update({ lastLogin: new Date() });
 
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: 15  * 1000
+    })
+
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',
-      maxAge: parseInt(process.env.JWT_REFRESH_EXPIRE) * 24 * 60 * 60 * 1000
+      maxAge: 7 * 24 * 60 * 60 * 1000
     })
 
     const staffData = staff.toJSON()
     return successResponse(res, {
-      staff: staffData,
-      accessToken,
-      refreshToken,
-      tokenType: 'Bearer',
-      expiresIn: process.env.JWT_EXPIRES_IN
+      staff: staffData
     }, 'Login successful');
 
   } catch (error) {
@@ -86,6 +89,13 @@ const logout = async (req, res) => {
         }
       });
     }
+
+    res.clearCookie('accessToken', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict'
+    })
+
     res.clearCookie('refreshToken', {
       httpOnly: true,
       secure: true,
@@ -100,13 +110,9 @@ const logout = async (req, res) => {
 
 const refreshAccessToken = async (req, res) => {
   try {
-    console.log('🔄 Refresh token request');
-    console.log('   Cookies:', req.cookies);
-    console.log('   Body:', req.body);
-
+    
     const refreshToken = 
-      (req.cookies && req.cookies.refreshToken) || 
-      (req.body && req.body.refreshToken);
+      (req.cookies && req.cookies.refreshToken)
 
     console.log('   RefreshToken extracted:', refreshToken ? 'Yes' : 'No');
     if (!refreshAccessToken) {
@@ -160,8 +166,22 @@ const refreshAccessToken = async (req, res) => {
       role: staff.role
     };
     const newAccessToken = generateAccessToken(tokenPayload);
+
+    res.cookie('accessToken', newAccessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: 15  * 1000
+    })
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    })
+
     return successResponse(res, {
-      accessToken: newAccessToken,
       tokenType: 'Bearer',
       expiresIn: process.env.JWT_EXPIRES_IN
     }, 'Access token refreshed successfully');

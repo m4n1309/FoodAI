@@ -5,7 +5,7 @@ import { extractTokenFromHeader, verifyAccessToken } from '../utils/jwt.js';
 
 const authenticate = async (req, res, next) => {
   try {
-    const token = extractTokenFromHeader(req.headers.authorization);
+    const token = req.cookies && req.cookies.accessToken || extractTokenFromHeader(req.headers['authorization']);
 
     if (!token) {
       return unauthorizedResponse(res, 'No token provided');

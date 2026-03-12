@@ -15,7 +15,7 @@ router.get('/featured', menuItemController.getFeaturedMenuItems);
 router.post('/', authenticate, roleCheck(['admin']), menuItemController.createMenuItem);
 router.put('/:id', authenticate, roleCheck(['admin']), menuItemController.updateMenuItem);
 router.delete('/:id', authenticate, roleCheck(['admin']), menuItemController.deleteMenuItem);
-router.post('/:id/feature', authenticate, roleCheck(['admin']), menuItemController.toggleMenuItemFeatured);
-router.post('/:id/availability', authenticate, roleCheck(['admin']), menuItemController.toggleMenuItemAvailability);
+router.patch('/:id/featured', authenticate, roleCheck(['admin']), menuItemController.toggleMenuItemFeatured);
+router.patch('/:id/availability', authenticate, roleCheck(['admin']), menuItemController.toggleMenuItemAvailability);
 
 export default router;
