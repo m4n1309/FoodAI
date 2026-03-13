@@ -56,7 +56,7 @@ const login = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',
-      maxAge: 15  * 1000
+      maxAge: 15 * 60 * 1000
     })
 
     res.cookie('refreshToken', refreshToken, {
@@ -110,12 +110,12 @@ const logout = async (req, res) => {
 
 const refreshAccessToken = async (req, res) => {
   try {
-    
-    const refreshToken = 
+
+    const refreshToken =
       (req.cookies && req.cookies.refreshToken)
 
     console.log('   RefreshToken extracted:', refreshToken ? 'Yes' : 'No');
-    if (!refreshAccessToken) {
+    if (!refreshToken) {
       return unauthorizedResponse(res, 'No refresh token provided');
     }
     let decoded;
@@ -171,7 +171,7 @@ const refreshAccessToken = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',
-      maxAge: 15  * 1000
+      maxAge: 15 * 60 * 1000
     })
 
     res.cookie('refreshToken', refreshToken, {

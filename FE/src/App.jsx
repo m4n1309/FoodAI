@@ -8,6 +8,7 @@ import LoginPage from './pages/admin/LoginPage';
 import DashboardPage from './pages/admin/DashboardPage';
 import CategoriesPage from './pages/admin/CategoriesPage';
 import MenuItemsPage from './pages/admin/MenuItemsPage';
+import TablesPage from './pages/admin/TablesPage';
 
 function App() {
   return (
@@ -49,9 +50,7 @@ function App() {
             path="/admin/tables"
             element={
               <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                <div className="min-h-screen flex items-center justify-center">
-                  <h1 className="text-4xl font-bold">Tables (Coming Soon)</h1>
-                </div>
+                <TablesPage />
               </ProtectedRoute>
             }
           />
