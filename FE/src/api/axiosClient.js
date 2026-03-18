@@ -1,7 +1,43 @@
 import axios from 'axios';
+import { getOrCreateCustomerSessionId } from '../utils/customerSession.js';
+
+const resolveApiBaseUrl = () => {
+  const configured = (import.meta.env.VITE_API_URL || '').trim();
+  if (!configured) return '';
+
+  try {
+    const parsed = new URL(configured);
+    const isDev = import.meta.env.DEV;
+    const isLocalhostConfig = ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
+    const currentHost = window.location.hostname;
+    const isCurrentHostLocal = ['localhost', '127.0.0.1', '::1'].includes(currentHost);
+
+    // Keep FE and API on same hostname in development so cookie-based auth remains same-site.
+    if (isDev && currentHost && parsed.hostname !== currentHost) {
+      parsed.hostname = currentHost;
+    } else if (isLocalhostConfig && currentHost && !isCurrentHostLocal) {
+      parsed.hostname = currentHost;
+    }
+
+    return parsed.toString().replace(/\/$/, '');
+  } catch {
+    return configured.replace(/\/$/, '');
+  }
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
+
+const isAuthEndpoint = (url = '') => {
+  const normalized = String(url);
+  return normalized.includes('/auth/login') || normalized.includes('/auth/refresh-token');
+};
+
+const isCustomerEndpoint = (url = '') => {
+  return String(url).includes('/customer');
+};
 
 const axiosClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -25,7 +61,11 @@ axiosClient.interceptors.response.use(
     return response.data;
   },
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config || {};
+
+    if (isAuthEndpoint(originalRequest.url)) {
+      return Promise.reject(error);
+    }
 
     // Handle 401 Unauthorized - Token expired
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -35,7 +75,7 @@ axiosClient.interceptors.response.use(
         console.log('Access token expired, attempting to refresh...');
 
         await axios.post(
-          `${import.meta.env.VITE_API_URL}/auth/refresh-token`,
+          `${API_BASE_URL}/auth/refresh-token`,
           {}, // Empty body - refresh token in cookie
           { withCredentials: true }
         );
@@ -55,5 +95,16 @@ axiosClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+axiosClient.interceptors.request.use((config) => {
+  // Attach customer session only for customer-facing APIs.
+  if (isCustomerEndpoint(config.url)) {
+    const sessionId = getOrCreateCustomerSessionId();
+    config.headers = config.headers || {};
+    config.headers['X-Customer-Session'] = sessionId;
+  }
+
+  return config;
+});
 
 export default axiosClient;

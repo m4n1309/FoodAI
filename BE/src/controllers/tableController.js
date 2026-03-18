@@ -16,6 +16,7 @@ import {
 } from '../utils/qrCodeHelper.js'
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 const getBackendBaseUrl = () => {
   return process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
@@ -29,8 +30,59 @@ const getQRCodePublicUrl = (table) => {
   return `${getBackendBaseUrl()}/qrcodes/${getQRCodeFilename(table)}`;
 };
 
-const saveQRCodeImage = async (table, qrToken) => {
-  const scanUrl = generateQRScanURL(qrToken, process.env.FRONTEND_URL);
+const getLanIPv4 = () => {
+  const nets = os.networkInterfaces();
+
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family !== 'IPv4' || net.internal) continue;
+      return net.address;
+    }
+  }
+
+  return null;
+};
+
+const normalizeUrl = (url) => (url || '').replace(/\/$/, '');
+
+const resolveFrontendBaseUrl = (req) => {
+  const configured = (process.env.FRONTEND_URL || '').trim();
+
+  if (configured) {
+    try {
+      const parsed = new URL(configured);
+      const isLocalConfig = ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
+
+      if (process.env.NODE_ENV === 'development') {
+        // Vite dev server runs on HTTP by default; HTTPS links from QR will fail on phones.
+        parsed.protocol = 'http:';
+      }
+
+      // In development, localhost URLs inside QR are not reachable from phones.
+      if (process.env.NODE_ENV === 'development' && isLocalConfig) {
+        const lanIp = getLanIPv4();
+        if (lanIp) {
+          parsed.hostname = lanIp;
+        }
+      }
+
+      return normalizeUrl(parsed.toString());
+    } catch (error) {
+      return normalizeUrl(configured);
+    }
+  }
+
+  const host = req?.get?.('host') || '';
+  const hostName = host.split(':')[0];
+  const lanIp = hostName && !['localhost', '127.0.0.1', '::1'].includes(hostName)
+    ? hostName
+    : (getLanIPv4() || 'localhost');
+
+  return `http://${lanIp}:5173`;
+};
+
+const saveQRCodeImage = async (table, qrToken, frontendBaseUrl) => {
+  const scanUrl = generateQRScanURL(qrToken, frontendBaseUrl);
   const uploadsDir = path.join(process.cwd(), 'public', 'qrcodes');
 
   if (!fs.existsSync(uploadsDir)) {
@@ -173,7 +225,7 @@ const createTable = async (req, res) => {
       }]
     })
 
-    await saveQRCodeImage(createdTable, qrToken);
+    await saveQRCodeImage(createdTable, qrToken, resolveFrontendBaseUrl(req));
 
     return successResponse(res, formatTableResponse(createdTable), 'Table created successfully');
   } catch (error) {
@@ -216,7 +268,7 @@ const updateTable = async (req, res) => {
       }]
     })
 
-    await saveQRCodeImage(updatedTable, table.qrCode);
+    await saveQRCodeImage(updatedTable, table.qrCode, resolveFrontendBaseUrl(req));
 
     return successResponse(res, formatTableResponse(updatedTable), 'Table updated successfully');
   } catch (error) {
@@ -288,7 +340,11 @@ const generateTableQRCode = async (req, res) => {
       await table.update({ qrCode: qrToken });
       console.log('✅ QR token regenerated');
     }
-    const { filename, scanUrl, publicUrl } = await saveQRCodeImage(table, qrToken);
+    const { filename, scanUrl, publicUrl } = await saveQRCodeImage(
+      table,
+      qrToken,
+      resolveFrontendBaseUrl(req)
+    );
 
     if (format === 'buffer' || format === 'download') {
       const qrCodeBuffer = await generateQRCodeBuffer(scanUrl);

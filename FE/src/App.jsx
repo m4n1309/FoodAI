@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -9,6 +9,19 @@ import DashboardPage from './pages/admin/DashboardPage';
 import CategoriesPage from './pages/admin/CategoriesPage';
 import MenuItemsPage from './pages/admin/MenuItemsPage';
 import TablesPage from './pages/admin/TablesPage';
+import CustomerMenuPage from './pages/customer/customerMenuPage';
+
+function ScanRedirectPage() {
+  const location = useLocation();
+  const qrCode = new URLSearchParams(location.search).get('qr');
+
+  if (!qrCode) {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  return <Navigate to={`/customer/menu/${encodeURIComponent(qrCode)}`} replace />;
+}
+
 
 function App() {
   return (
@@ -17,6 +30,12 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/admin/login" element={<LoginPage />} />
+
+          <Route path="/customer/menu/:qrCode" element={<CustomerMenuPage />} />
+          <Route path="/customer/menu" element={<CustomerMenuPage />} />
+          <Route path="/menu/:qrCode" element={<CustomerMenuPage />} />
+          <Route path="/customer/:qrCode" element={<CustomerMenuPage />} />
+          <Route path="/scan" element={<ScanRedirectPage />} />
 
           {/* Protected Admin Routes */}
           <Route

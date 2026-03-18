@@ -12,6 +12,43 @@ import {
 } from '../utils/ResponseHelper.js';
 import { StatusCodes } from 'http-status-codes';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+const getCookieBaseOptions = () => ({
+  httpOnly: true,
+  secure: isProduction,
+  // HTTP LAN/dev cannot use SameSite=None because it requires secure=true (HTTPS).
+  sameSite: isProduction ? 'none' : 'lax',
+  path: '/'
+});
+
+const getAccessTokenCookieOptions = () => ({
+  ...getCookieBaseOptions(),
+  maxAge: 15 * 60 * 1000
+});
+
+const getRefreshTokenCookieOptions = () => ({
+  ...getCookieBaseOptions(),
+  maxAge: 7 * 24 * 60 * 60 * 1000
+});
+
+const getRefreshSessionExpiryMs = () => {
+  const raw = String(process.env.JWT_REFRESH_EXPIRE || '7d').trim();
+
+  // Support formats like "7d" and plain numeric day values.
+  const dayMatch = raw.match(/^(\d+)d$/i);
+  if (dayMatch) {
+    return Number(dayMatch[1]) * 24 * 60 * 60 * 1000;
+  }
+
+  const numericDays = Number(raw);
+  if (Number.isFinite(numericDays) && numericDays > 0) {
+    return numericDays * 24 * 60 * 60 * 1000;
+  }
+
+  return 7 * 24 * 60 * 60 * 1000;
+};
+
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -44,27 +81,17 @@ const login = async (req, res) => {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
-    const session = await db.Session.create({
+    await db.Session.create({
       staffId: staff.id,
       refreshToken,
-      expiresAt: new Date(Date.now() + parseInt(process.env.JWT_REFRESH_EXPIRE) * 24 * 60 * 60 * 1000)
+      expiresAt: new Date(Date.now() + getRefreshSessionExpiryMs())
     })
 
     await staff.update({ lastLogin: new Date() });
 
-    res.cookie('accessToken', accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 15 * 60 * 1000
-    })
+    res.cookie('accessToken', accessToken, getAccessTokenCookieOptions())
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    })
+    res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions())
 
     const staffData = staff.toJSON()
     return successResponse(res, {
@@ -90,17 +117,9 @@ const logout = async (req, res) => {
       });
     }
 
-    res.clearCookie('accessToken', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict'
-    })
+    res.clearCookie('accessToken', getCookieBaseOptions())
 
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict'
-    })
+    res.clearCookie('refreshToken', getCookieBaseOptions())
     return successResponse(res, null, 'Logout successful');
   } catch (error) {
     console.error('Logout error:', error);
@@ -114,7 +133,6 @@ const refreshAccessToken = async (req, res) => {
     const refreshToken =
       (req.cookies && req.cookies.refreshToken)
 
-    console.log('   RefreshToken extracted:', refreshToken ? 'Yes' : 'No');
     if (!refreshToken) {
       return unauthorizedResponse(res, 'No refresh token provided');
     }
@@ -122,11 +140,7 @@ const refreshAccessToken = async (req, res) => {
     try {
       decoded = verifyRefreshToken(refreshToken);
     } catch (error) {
-      res.clearCookie('refreshToken', {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict'
-      })
+      res.clearCookie('refreshToken', getCookieBaseOptions())
       return unauthorizedResponse(res, 'Invalid refresh token');
     }
     const session = await db.Session.findOne({
@@ -136,20 +150,12 @@ const refreshAccessToken = async (req, res) => {
       }
     })
     if (!session) {
-      res.clearCookie('refreshToken', {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict'
-      })
+      res.clearCookie('refreshToken', getCookieBaseOptions())
       return unauthorizedResponse(res, 'Refresh token not found');
     }
     if (session.isExpired()) {
       await session.destroy();
-      res.clearCookie('refreshToken', {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict'
-      })
+      res.clearCookie('refreshToken', getCookieBaseOptions())
       return unauthorizedResponse(res, 'Refresh token expired');
     }
     const staff = await db.Staff.findByPk(decoded.id);
@@ -167,23 +173,13 @@ const refreshAccessToken = async (req, res) => {
     };
     const newAccessToken = generateAccessToken(tokenPayload);
 
-    res.cookie('accessToken', newAccessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 15 * 60 * 1000
-    })
+    res.cookie('accessToken', newAccessToken, getAccessTokenCookieOptions())
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    })
+    res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions())
 
     return successResponse(res, {
       tokenType: 'Bearer',
-      expiresIn: process.env.JWT_EXPIRES_IN
+      expiresIn: process.env.JWT_EXPIRE || process.env.JWT_EXPIRES_IN || '15m'
     }, 'Access token refreshed successfully');
   } catch (error) {
     console.error('Refresh token error:', error);

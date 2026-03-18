@@ -32,7 +32,7 @@ const authApi = {
    * @returns {Promise}
    */
   refreshToken: (refreshToken) => {
-    return axiosClient.post('/auth/refresh', { refreshToken });
+    return axiosClient.post('/auth/refresh-token', { refreshToken });
   },
 };
 
