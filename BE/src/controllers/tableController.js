@@ -1,4 +1,5 @@
-import db from '../models/index.js';
+import tableService from '../services/tableService.js';
+import { isServiceError } from '../services/serviceError.js';
 import {
   successResponse,
   errorResponse,
@@ -6,444 +7,132 @@ import {
   forbiddenResponse
 } from '../utils/ResponseHelper.js'
 import { StatusCodes } from 'http-status-codes';
-import {
-  generateQRToken,
-  parseQRToken,
-  generateQRCodeImage,
-  generateQRCodeBuffer,
-  generateQRScanURL,
-  validateQRToken
-} from '../utils/qrCodeHelper.js'
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-
-const getBackendBaseUrl = () => {
-  return process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
-};
-
-const getQRCodeFilename = (table) => {
-  return `table-${table.restaurantId}-${table.tableNumber}-qr.png`;
-};
-
-const getQRCodePublicUrl = (table) => {
-  return `${getBackendBaseUrl()}/qrcodes/${getQRCodeFilename(table)}`;
-};
-
-const getLanIPv4 = () => {
-  const nets = os.networkInterfaces();
-
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name] || []) {
-      if (net.family !== 'IPv4' || net.internal) continue;
-      return net.address;
-    }
+const handleServiceError = (res, error, fallbackMessage) => {
+  if (!isServiceError(error)) {
+    return errorResponse(res, fallbackMessage, 'Error', StatusCodes.INTERNAL_SERVER_ERROR);
   }
 
-  return null;
-};
-
-const normalizeUrl = (url) => (url || '').replace(/\/$/, '');
-
-const resolveFrontendBaseUrl = (req) => {
-  const configured = (process.env.FRONTEND_URL || '').trim();
-
-  if (configured) {
-    try {
-      const parsed = new URL(configured);
-      const isLocalConfig = ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
-
-      if (process.env.NODE_ENV === 'development') {
-        // Vite dev server runs on HTTP by default; HTTPS links from QR will fail on phones.
-        parsed.protocol = 'http:';
-      }
-
-      // In development, localhost URLs inside QR are not reachable from phones.
-      if (process.env.NODE_ENV === 'development' && isLocalConfig) {
-        const lanIp = getLanIPv4();
-        if (lanIp) {
-          parsed.hostname = lanIp;
-        }
-      }
-
-      return normalizeUrl(parsed.toString());
-    } catch (error) {
-      return normalizeUrl(configured);
-    }
+  if (error.statusCode === StatusCodes.NOT_FOUND) {
+    return notFoundResponse(res, error.message);
+  }
+  if (error.statusCode === StatusCodes.FORBIDDEN) {
+    return forbiddenResponse(res, error.message);
   }
 
-  const host = req?.get?.('host') || '';
-  const hostName = host.split(':')[0];
-  const lanIp = hostName && !['localhost', '127.0.0.1', '::1'].includes(hostName)
-    ? hostName
-    : (getLanIPv4() || 'localhost');
-
-  return `http://${lanIp}:5173`;
-};
-
-const saveQRCodeImage = async (table, qrToken, frontendBaseUrl) => {
-  const scanUrl = generateQRScanURL(qrToken, frontendBaseUrl);
-  const uploadsDir = path.join(process.cwd(), 'public', 'qrcodes');
-
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-
-  const filename = getQRCodeFilename(table);
-  const filepath = path.join(uploadsDir, filename);
-  const qrCodeBuffer = await generateQRCodeBuffer(scanUrl);
-
-  fs.writeFileSync(filepath, qrCodeBuffer);
-
-  return {
-    filename,
-    scanUrl,
-    publicUrl: getQRCodePublicUrl(table)
-  };
-};
-
-const formatTableResponse = (table) => {
-  const tableData = table.toJSON ? table.toJSON() : { ...table };
-  const qrToken = tableData.qrCode;
-
-  return {
-    ...tableData,
-    qrToken,
-    qrCode: qrToken ? getQRCodePublicUrl(tableData) : null,
-    qrCodeUrl: qrToken ? getQRCodePublicUrl(tableData) : null,
-  };
+  return errorResponse(res, error.message, 'Error', error.statusCode);
 };
 
 const getAllTables = async (req, res) => {
   try {
-
-    const {
-      restaurantId,
-      status,
-      location,
-      isActive,
-      sort = 'tableNumber',
-      order = 'ASC',
-    } = req.query;
-
-    const where = {};
-
-    if (restaurantId) where.restaurantId = restaurantId;
-    if (status) where.status = status;
-    if (location) where.location = location;
-    if (isActive) where.isActive = isActive === 'true';
-
-    const tables = await db.Table.findAll({
-      where,
-      include: [{
-        model: db.Restaurant,
-        as: 'restaurant',
-        attributes: ['id', 'name', 'slug']
-      }],
-      order: [[sort, order.toUpperCase()]]
-    })
-
-    const formattedTables = tables.map(formatTableResponse);
-
+    const data = await tableService.getAllTables(req.query);
     return successResponse(res, {
-      total: formattedTables.length,
-      tables: formattedTables
+      total: data.total,
+      tables: data.tables
     }, 'Tables retrieved successfully');
-
   } catch (error) {
-    return errorResponse(res, error.message, StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'Failed to retrieve tables');
   }
 }
 
 const getTableById = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const table = await db.Table.findByPk(id, {
-      include: [{
-        model: db.Restaurant,
-        as: 'restaurant',
-        attributes: ['id', 'name', 'slug', 'address', 'phone']
-      }]
-    })
-    if (!table) return notFoundResponse(res, 'Table not found');
-
-    const isOccupied = await table.isOccupied();
-    const currentOrder = isOccupied ? await table.getCurrentOrder() : null;
-
-    const tableData = formatTableResponse(table);
-    tableData.isOccupied = isOccupied;
-    tableData.currentOrder = currentOrder;
-
-    return successResponse(res, tableData, 'Table retrieved successfully');
+    const table = await tableService.getTableById(req.params.id);
+    return successResponse(res, table, 'Table retrieved successfully');
   } catch (error) {
-    return errorResponse(res, error.message, StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'Failed to retrieve table');
   }
 }
 
 const createTable = async (req, res) => {
   try {
-
-    const {
-      restaurantId,
-      tableNumber,
-      capacity,
-      location,
-    } = req.body;
-
-    if (!restaurantId || !tableNumber) return errorResponse(res, 'Restaurant ID and table number are required', StatusCodes.BAD_REQUEST);
-
-    if (req.staff.restaurantId !== restaurantId) return forbiddenResponse(res, 'You do not have permission to create a table for this restaurant');
-
-    const existingTable = await db.Table.findOne({
-      where: {
-        restaurantId,
-        tableNumber
-      }
-    })
-    if (existingTable) return errorResponse(res, 'A table with this number already exists in the restaurant', StatusCodes.CONFLICT);
-
-    const tempToken = `QR_${restaurantId}_TEMP_${Date.now()}`;
-
-    const table = await db.Table.create({
-      restaurantId,
-      tableNumber,
-      qrCode: tempToken,
-      capacity,
-      location,
-    })
-
-    const qrToken = await generateQRToken(restaurantId, table.id);
-
-    await table.update({ qrCode: qrToken });
-
-    const createdTable = await db.Table.findByPk(table.id, {
-      include: [{
-        model: db.Restaurant,
-        as: 'restaurant',
-        attributes: ['id', 'name', 'slug']
-      }]
-    })
-
-    await saveQRCodeImage(createdTable, qrToken, resolveFrontendBaseUrl(req));
-
-    return successResponse(res, formatTableResponse(createdTable), 'Table created successfully');
+    const table = await tableService.createTable({
+      body: req.body,
+      staffRestaurantId: req.staff.restaurantId,
+      requestHost: req.get('host')
+    });
+    return successResponse(res, table, 'Table created successfully');
   } catch (error) {
-    return errorResponse(res, error.message, StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'Failed to create table');
   }
 }
 
 const updateTable = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const updateData = req.body;
-
-    const table = await db.Table.findByPk(id);
-    if (!table) return notFoundResponse(res, 'Table not found');
-
-    if (req.staff.restaurantId !== table.restaurantId) return forbiddenResponse(res, 'You do not have permission to update this table');
-
-    if (updateData.tableNumber && updateData.tableNumber !== table.tableNumber) {
-      const existingTable = await db.Table.findOne({
-        where: {
-          restaurantId: table.restaurantId,
-          tableNumber: updateData.tableNumber,
-          id: { [db.Sequelize.Op.ne]: id }
-        }
-      })
-      if (existingTable) return errorResponse(res, 'A table with this number already exists in the restaurant', StatusCodes.CONFLICT);
-    }
-
-    delete updateData.qrCode;
-    delete updateData.restaurantId;
-
-    await table.update(updateData);
-
-    const updatedTable = await db.Table.findByPk(id, {
-      include: [{
-        model: db.Restaurant,
-        as: 'restaurant',
-        attributes: ['id', 'name', 'slug']
-      }]
-    })
-
-    await saveQRCodeImage(updatedTable, table.qrCode, resolveFrontendBaseUrl(req));
-
-    return successResponse(res, formatTableResponse(updatedTable), 'Table updated successfully');
+    const table = await tableService.updateTable({
+      id: req.params.id,
+      updateData: req.body,
+      staffRestaurantId: req.staff.restaurantId,
+      requestHost: req.get('host')
+    });
+    return successResponse(res, table, 'Table updated successfully');
   } catch (error) {
-    return errorResponse(res, error.message, StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'Failed to update table');
   }
 }
 
 const deleteTable = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const table = await db.Table.findByPk(id);
-    if (!table) return notFoundResponse(res, 'Table not found');
-
-    if (req.staff.restaurantId !== table.restaurantId) return forbiddenResponse(res, 'You do not have permission to delete this table');
-
-    const isOccupied = await table.isOccupied();
-    if (isOccupied) return errorResponse(res, 'Cannot delete an occupied table', StatusCodes.BAD_REQUEST);
-
-    await table.destroy();
-
+    await tableService.deleteTable({
+      id: req.params.id,
+      staffRestaurantId: req.staff.restaurantId
+    });
     return successResponse(res, null, 'Table deleted successfully');
   } catch (error) {
-    return errorResponse(res, error.message, StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'Failed to delete table');
   }
 }
 
 const updateTableStatus = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    if (!['available', 'occupied', 'reserved', 'maintenance'].includes(status)) return errorResponse(res, 'Invalid status value', StatusCodes.BAD_REQUEST);
-
-    const table = await db.Table.findByPk(id);
-    if (!table) return notFoundResponse(res, 'Table not found');
-
-    if (req.staff.restaurantId !== table.restaurantId) return forbiddenResponse(res, 'You do not have permission to update this table');
-
-    await table.update({ status });
-
-    return successResponse(res, formatTableResponse(table), 'Table status updated successfully');
+    const table = await tableService.updateTableStatus({
+      id: req.params.id,
+      status: req.body.status,
+      staffRestaurantId: req.staff.restaurantId
+    });
+    return successResponse(res, table, 'Table status updated successfully');
   } catch (error) {
-    return errorResponse(res, error.message, StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'Failed to update table status');
   }
 }
 
 const generateTableQRCode = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { format = 'url', regenerate = false } = req.body || {};
+    const result = await tableService.generateTableQRCode({
+      id: req.params.id,
+      format: req.body?.format || 'url',
+      regenerate: req.body?.regenerate || false,
+      staffRestaurantId: req.staff.restaurantId,
+      requestHost: req.get('host')
+    });
 
-    console.log('🔲 Generate QR code for table:', id);
-
-    const table = await db.Table.findByPk(id);
-
-    if (!table) {
-      return notFoundResponse(res, 'Bàn không tồn tại');
-    }
-
-    if (req.staff.restaurantId !== table.restaurantId) {
-      return forbiddenResponse(res, 'Bạn không có quyền tạo QR code cho bàn này');
-    }
-
-    let qrToken = table.qrCode;
-
-    if (regenerate) {
-      qrToken = await generateQRToken(table.restaurantId, table.id);
-      await table.update({ qrCode: qrToken });
-      console.log('✅ QR token regenerated');
-    }
-    const { filename, scanUrl, publicUrl } = await saveQRCodeImage(
-      table,
-      qrToken,
-      resolveFrontendBaseUrl(req)
-    );
-
-    if (format === 'buffer' || format === 'download') {
-      const qrCodeBuffer = await generateQRCodeBuffer(scanUrl);
-
+    if (result.type === 'buffer') {
       res.setHeader('Content-Type', 'image/png');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      return res.send(qrCodeBuffer);
-
-    } else {
-      const qrCodeImage = format === 'both' ? await generateQRCodeImage(scanUrl) : null;
-
-      return successResponse(res, {
-        tableId: table.id,
-        tableNumber: table.tableNumber,
-        qrToken,
-        qrCode: publicUrl,
-        qrCodeUrl: publicUrl,        // ← Public URL to access QR image
-        qrCodeImage: qrCodeImage,     // ← Base64 (if format='both')
-        scanUrl,                      // ← Frontend scan URL
-        filename                      // ← Filename for reference
-      }, 'Tạo QR code thành công');
+      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+      return res.send(result.buffer);
     }
 
+    return successResponse(res, result.data, 'Tạo QR code thành công');
   } catch (error) {
     console.error('❌ Generate QR code error:', error);
-    return errorResponse(res, error.message || 'Tạo QR code thất bại', StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'Tạo QR code thất bại');
   }
 };
 
 const getTableByQRCode = async (req, res) => {
   try {
-    const { qrCode } = req.params;
-
-    if (!validateQRToken(qrCode)) return errorResponse(res, 'Invalid QR code token', StatusCodes.BAD_REQUEST);
-
-    const { restaurantId, tableId } = parseQRToken(qrCode);
-
-    const table = await db.Table.findOne({
-      where: {
-        id: tableId,
-        restaurantId,
-        qrCode
-      },
-      include: [{
-        model: db.Restaurant,
-        as: 'restaurant',
-        attributes: ['id', 'name', 'slug', 'address', 'phone', 'logoUrl', 'openingHours']
-      }]
-    });
-
-    if (!table) return notFoundResponse(res, 'Table not found');
-
-    if (!table.isActive) return errorResponse(res, 'Table is not active', StatusCodes.BAD_REQUEST);
-
-    const isOccupied = await table.isOccupied();
-    const currentOrder = isOccupied ? await table.getCurrentOrder() : null;
-
-    const tableData = formatTableResponse(table);
-    tableData.isOccupied = isOccupied;
-    tableData.currentOrder = currentOrder ? {
-      id: currentOrder.id,
-      orderStatus: currentOrder.orderStatus,
-      orderNumber: currentOrder.orderNumber,
-    } : null;
-
-    return successResponse(res, tableData, 'Table found successfully');
+    const table = await tableService.getTableByQRCode(req.params.qrCode);
+    return successResponse(res, table, 'Table found successfully');
   } catch (error) {
-    return errorResponse(res, error.message, StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'Failed to find table by QR code');
   }
 }
 
 const getTableStatusSummary = async (req, res) => {
   try {
-    const { restaurantId } = req.query;
-
-    if (!restaurantId) return errorResponse(res, 'Restaurant ID is required', StatusCodes.BAD_REQUEST);
-    const summary = await db.Table.findAll({
-      where: { restaurantId, isActive: true },
-      attributes: ['status', [db.Sequelize.fn('COUNT', db.Sequelize.col('id')), 'count']],
-      group: ['status'],
-      raw: true,
-    })
-
-    const statusCounts = {
-      available: 0,
-      occupied: 0,
-      reserved: 0,
-      maintenance: 0,
-      total: 0
-    }
-
-    summary.forEach(item => {
-      statusCounts[item.status] = parseInt(item.count);
-      statusCounts.total += parseInt(item.count);
-    });
-
+    const statusCounts = await tableService.getTableStatusSummary(req.query.restaurantId);
     return successResponse(res, statusCounts, 'Table status summary retrieved successfully');
   } catch (error) {
-    return errorResponse(res, error.message, StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'Failed to retrieve table status summary');
   }
 }
 

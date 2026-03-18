@@ -3,7 +3,7 @@ import {
   BellIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth.js';
 
 const Header = ({ onMenuClick, title }) => {
   const { user } = useAuth();

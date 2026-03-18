@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth.js';
 import AdminLayout from '../../components/admin/AdminLayout';
 import CategoryModal from '../../components/admin/CategoryModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import ImageWithFallback from '../../components/common/ImageWithFallback'; // ✅ IMPORT
-import categoryApi from '../../api/categoryApi';
+import categoryApi from '../../services/categoryService.js';
 import toast from 'react-hot-toast';
 import {
   PlusIcon,
@@ -220,11 +220,10 @@ const CategoriesPage = () => {
                     {category.name}
                   </h3>
                   <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      category.isActive
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${category.isActive
                         ? 'bg-green-100 text-green-800'
                         : 'bg-gray-100 text-gray-800'
-                    }`}
+                      }`}
                   >
                     {category.isActive ? 'Hoạt động' : 'Đã ẩn'}
                   </span>

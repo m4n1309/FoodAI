@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth.js';
 import AdminLayout from '../../components/admin/AdminLayout';
 import MenuItemModal from '../../components/admin/MenuItemModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import ImageWithFallback from '../../components/common/ImageWithFallback'; // ✅ IMPORT
-import menuItemApi from '../../api/menuItemApi';
-import categoryApi from '../../api/categoryApi';
+import menuItemApi from '../../services/menuItemService.js';
+import categoryApi from '../../services/categoryService.js';
 import toast from 'react-hot-toast';
 import {
   PlusIcon,
@@ -387,11 +387,10 @@ const MenuItemsPage = () => {
                 {/* Status */}
                 <div className="flex items-center justify-between mb-3">
                   <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      item.isAvailable
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${item.isAvailable
                         ? 'bg-green-100 text-green-800'
                         : 'bg-gray-100 text-gray-800'
-                    }`}
+                      }`}
                   >
                     {item.isAvailable ? 'Còn món' : 'Hết món'}
                   </span>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import customerApi from '../../api/customerApi';
+import customerApi from '../../services/customerService.js';
 
 const formatMoney = (v) => {
   const n = Number(v || 0);

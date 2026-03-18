@@ -2,8 +2,8 @@ import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useForm } from 'react-hook-form';
-import categoryApi from '../../api/categoryApi';
-import { useAuth } from '../../context/AuthContext';
+import categoryApi from '../../services/categoryService.js';
+import { useAuth } from '../../hooks/useAuth.js';
 
 const MenuItemModal = ({ isOpen, onClose, menuItem, onSubmit, loading }) => {
   const { user } = useAuth();

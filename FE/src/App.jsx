@@ -1,15 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './context/AuthContext';
-import ProtectedRoute from './components/common/ProtectedRoute';
-
-// Pages
-import LoginPage from './pages/admin/LoginPage';
-import DashboardPage from './pages/admin/DashboardPage';
-import CategoriesPage from './pages/admin/CategoriesPage';
-import MenuItemsPage from './pages/admin/MenuItemsPage';
-import TablesPage from './pages/admin/TablesPage';
+import { AuthProvider } from './state/AuthContext';
+import ProtectedRoute from './components/common/ProtectedRoute.jsx';
+import LoginPage from './pages/admin/LoginPage.jsx';
+import DashboardPage from './pages/admin/DashboardPage.jsx';
+import CategoriesPage from './pages/admin/CategoriesPage.jsx';
+import MenuItemsPage from './pages/admin/MenuItemsPage.jsx';
+import TablesPage from './pages/admin/TablesPage.jsx';
 import CustomerMenuPage from './pages/customer/customerMenuPage';
+import { toastOptions } from './config/toastConfig.js';
 
 function ScanRedirectPage() {
   const location = useLocation();
@@ -22,13 +21,11 @@ function ScanRedirectPage() {
   return <Navigate to={`/customer/menu/${encodeURIComponent(qrCode)}`} replace />;
 }
 
-
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public Routes */}
           <Route path="/admin/login" element={<LoginPage />} />
 
           <Route path="/customer/menu/:qrCode" element={<CustomerMenuPage />} />
@@ -37,7 +34,6 @@ function App() {
           <Route path="/customer/:qrCode" element={<CustomerMenuPage />} />
           <Route path="/scan" element={<ScanRedirectPage />} />
 
-          {/* Protected Admin Routes */}
           <Route
             path="/admin/dashboard"
             element={
@@ -74,36 +70,14 @@ function App() {
             }
           />
 
-          {/* Redirects */}
           <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/" element={<Navigate to="/admin/login" replace />} />
           <Route path="*" element={<Navigate to="/admin/login" replace />} />
         </Routes>
 
-        {/* Toast Notifications */}
         <Toaster
           position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: '#10b981',
-                secondary: '#fff',
-              },
-            },
-            error: {
-              duration: 4000,
-              iconTheme: {
-                primary: '#ef4444',
-                secondary: '#fff',
-              },
-            },
-          }}
+          toastOptions={toastOptions}
         />
       </BrowserRouter>
     </AuthProvider>

@@ -9,7 +9,7 @@ import {
   CogIcon,
   ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth.js';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
@@ -126,10 +126,9 @@ const Sidebar = ({ isOpen, onClose }) => {
               key={item.name}
               to={item.href}
               className={({ isActive }) =>
-                `flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-primary-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                `flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${isActive
+                  ? 'bg-primary-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                 }`
               }
             >

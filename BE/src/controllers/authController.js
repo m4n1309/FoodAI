@@ -1,12 +1,9 @@
-import db from '../models/index.js';
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken
-} from '../utils/jwt.js';
+import authService from '../services/authService.js';
+import { isServiceError } from '../services/serviceError.js';
 import {
   successResponse,
   unauthorizedResponse,
+  forbiddenResponse,
   notFoundResponse,
   errorResponse
 } from '../utils/ResponseHelper.js';
@@ -32,215 +29,111 @@ const getRefreshTokenCookieOptions = () => ({
   maxAge: 7 * 24 * 60 * 60 * 1000
 });
 
-const getRefreshSessionExpiryMs = () => {
-  const raw = String(process.env.JWT_REFRESH_EXPIRE || '7d').trim();
-
-  // Support formats like "7d" and plain numeric day values.
-  const dayMatch = raw.match(/^(\d+)d$/i);
-  if (dayMatch) {
-    return Number(dayMatch[1]) * 24 * 60 * 60 * 1000;
+const handleServiceError = (res, error, fallbackMessage) => {
+  if (!isServiceError(error)) {
+    return errorResponse(res, fallbackMessage, 'Error', StatusCodes.INTERNAL_SERVER_ERROR);
   }
 
-  const numericDays = Number(raw);
-  if (Number.isFinite(numericDays) && numericDays > 0) {
-    return numericDays * 24 * 60 * 60 * 1000;
+  if (error.statusCode === StatusCodes.UNAUTHORIZED) {
+    return unauthorizedResponse(res, error.message);
+  }
+  if (error.statusCode === StatusCodes.FORBIDDEN) {
+    return forbiddenResponse(res, error.message);
+  }
+  if (error.statusCode === StatusCodes.NOT_FOUND) {
+    return notFoundResponse(res, error.message);
   }
 
-  return 7 * 24 * 60 * 60 * 1000;
+  return errorResponse(res, error.message, 'Error', error.statusCode);
 };
 
 const login = async (req, res) => {
   try {
-    const { username, password } = req.body;
-
-    const staff = await db.Staff.findOne({
-      where: { username },
-      include: [{
-        model: db.Restaurant,
-        as: 'restaurant',
-        attributes: ['id', 'name', 'slug', 'isActive']
-      }]
-    })
-    if (!staff) {
-      return notFoundResponse(res, 'User not found');
-    }
-    if (!staff.isActive) {
-      return unauthorizedResponse(res, 'User is inactive');
-    }
-    const isPasswordValid = await staff.comparePassword(password);
-    if (!isPasswordValid) {
-      return unauthorizedResponse(res, 'Invalid password');
-    }
-
-    const tokenPayload = {
-      id: staff.id,
-      username: staff.username,
-      restaurantId: staff.restaurantId,
-      role: staff.role
-    }
-    const accessToken = generateAccessToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
-
-    await db.Session.create({
-      staffId: staff.id,
-      refreshToken,
-      expiresAt: new Date(Date.now() + getRefreshSessionExpiryMs())
-    })
-
-    await staff.update({ lastLogin: new Date() });
+    const { accessToken, refreshToken, staff } = await authService.login(req.body);
 
     res.cookie('accessToken', accessToken, getAccessTokenCookieOptions())
-
     res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions())
 
-    const staffData = staff.toJSON()
     return successResponse(res, {
-      staff: staffData
+      staff
     }, 'Login successful');
 
   } catch (error) {
     console.error('Login error:', error);
-    return errorResponse(res, 'An error occurred during login', StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'An error occurred during login');
   }
 }
 
 const logout = async (req, res) => {
   try {
-    const refreshToken = req.cookies?.refreshToken;
-
-    if (refreshToken) {
-      await db.Session.destroy({
-        where: {
-          refreshToken,
-          staffId: req.staff.id
-        }
-      });
-    }
+    await authService.logout({
+      staffId: req.staff.id,
+      refreshToken: req.cookies?.refreshToken
+    });
 
     res.clearCookie('accessToken', getCookieBaseOptions())
-
     res.clearCookie('refreshToken', getCookieBaseOptions())
+
     return successResponse(res, null, 'Logout successful');
   } catch (error) {
     console.error('Logout error:', error);
-    return errorResponse(res, 'An error occurred during logout', StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'An error occurred during logout');
   }
 }
 
 const refreshAccessToken = async (req, res) => {
   try {
+    const refreshToken = req.cookies?.refreshToken;
+    const refreshed = await authService.refreshAccessToken({ refreshToken });
 
-    const refreshToken =
-      (req.cookies && req.cookies.refreshToken)
-
-    if (!refreshToken) {
-      return unauthorizedResponse(res, 'No refresh token provided');
-    }
-    let decoded;
-    try {
-      decoded = verifyRefreshToken(refreshToken);
-    } catch (error) {
-      res.clearCookie('refreshToken', getCookieBaseOptions())
-      return unauthorizedResponse(res, 'Invalid refresh token');
-    }
-    const session = await db.Session.findOne({
-      where: {
-        refreshToken,
-        staffId: decoded.id
-      }
-    })
-    if (!session) {
-      res.clearCookie('refreshToken', getCookieBaseOptions())
-      return unauthorizedResponse(res, 'Refresh token not found');
-    }
-    if (session.isExpired()) {
-      await session.destroy();
-      res.clearCookie('refreshToken', getCookieBaseOptions())
-      return unauthorizedResponse(res, 'Refresh token expired');
-    }
-    const staff = await db.Staff.findByPk(decoded.id);
-    if (!staff) {
-      return notFoundResponse(res, 'User not found');
-    }
-    if (!staff.isActive) {
-      return unauthorizedResponse(res, 'User is inactive');
-    }
-    const tokenPayload = {
-      id: staff.id,
-      username: staff.username,
-      restaurantId: staff.restaurantId,
-      role: staff.role
-    };
-    const newAccessToken = generateAccessToken(tokenPayload);
-
-    res.cookie('accessToken', newAccessToken, getAccessTokenCookieOptions())
-
-    res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions())
+    res.cookie('accessToken', refreshed.accessToken, getAccessTokenCookieOptions())
+    res.cookie('refreshToken', refreshed.refreshToken, getRefreshTokenCookieOptions())
 
     return successResponse(res, {
       tokenType: 'Bearer',
-      expiresIn: process.env.JWT_EXPIRE || process.env.JWT_EXPIRES_IN || '15m'
+      expiresIn: refreshed.expiresIn
     }, 'Access token refreshed successfully');
   } catch (error) {
+    if (isServiceError(error) && error.statusCode === StatusCodes.UNAUTHORIZED) {
+      res.clearCookie('refreshToken', getCookieBaseOptions())
+    }
+
     console.error('Refresh token error:', error);
-    return errorResponse(res, 'An error occurred while refreshing access token', StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'An error occurred while refreshing access token');
   }
 }
 
 const getCurStaff = async (req, res) => {
   try {
-    const staff = await db.Staff.findByPk(req.staff.id, {
-      attributes: { exclude: ['passwordHash'] },
-      include: [{
-        model: db.Restaurant,
-        as: 'restaurant',
-        attributes: ['id', 'name', 'slug', 'address', 'phone', 'email', 'logoUrl']
-      }]
-    })
-    if (!staff) {
-      return notFoundResponse(res, 'User not found');
-    }
+    const staff = await authService.getCurrentStaff({ staffId: req.staff.id });
     return successResponse(res, staff, 'Current staff retrieved successfully');
   } catch (error) {
     console.error('Get current staff error:', error);
-    return errorResponse(res, 'An error occurred while retrieving current staff', StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'An error occurred while retrieving current staff');
   }
 }
 
 const getSessions = async (req, res) => {
   try {
-    const sessions = await db.Session.findAll({
-      where: {
-        staffId: req.staff.id,
-        expiresAt: { [db.Sequelize.Op.gt]: new Date() }
-      },
-      attributes: ['id', 'refreshToken', 'expiresAt', 'created_at'],
-      order: [['created_at', 'DESC']]
-    })
+    const sessions = await authService.getSessions({ staffId: req.staff.id });
     return successResponse(res, sessions, 'Sessions retrieved successfully');
   } catch (error) {
     console.error('Get sessions error:', error);
-    return errorResponse(res, 'An error occurred while retrieving sessions', StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'An error occurred while retrieving sessions');
   }
 }
 
 const revokeSession = async (req, res) => {
   try {
-    const { sessionId } = req.params;
-    const session = await db.Session.findOne({
-      where: {
-        id: sessionId,
-        staffId: req.staff.id
-      }
-    })
-    if (!session) {
-      return notFoundResponse(res, 'Session not found');
-    }
-    await session.destroy();
+    await authService.revokeSession({
+      staffId: req.staff.id,
+      sessionId: req.params.sessionId
+    });
+
     return successResponse(res, null, 'Session revoked successfully');
   } catch (error) {
     console.error('Revoke session error:', error);
-    return errorResponse(res, 'An error occurred while revoking session', StatusCodes.INTERNAL_SERVER_ERROR);
+    return handleServiceError(res, error, 'An error occurred while revoking session');
   }
 }
 

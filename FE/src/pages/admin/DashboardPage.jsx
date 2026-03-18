@@ -1,4 +1,4 @@
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth.js';
 import AdminLayout from '../../components/admin/AdminLayout';
 import {
   ShoppingBagIcon,
@@ -129,9 +129,8 @@ const DashboardPage = () => {
                     <ArrowTrendingDownIcon className="h-4 w-4 text-red-500 mr-1" />
                   )}
                   <span
-                    className={`text-sm font-medium ${
-                      stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
-                    }`}
+                    className={`text-sm font-medium ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
+                      }`}
                   >
                     {stat.change}
                   </span>

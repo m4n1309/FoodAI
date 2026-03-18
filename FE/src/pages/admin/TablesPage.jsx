@@ -1,10 +1,10 @@
 import { Fragment, useState, useEffect, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth.js';
 import AdminLayout from '../../components/admin/AdminLayout';
 import TableModal from '../../components/admin/TableModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import tableApi from '../../api/tableApi';
+import tableApi from '../../services/tableService.js';
 import toast from 'react-hot-toast';
 import {
   PlusIcon,
