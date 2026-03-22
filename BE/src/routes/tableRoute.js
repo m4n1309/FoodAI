@@ -15,11 +15,11 @@ router.get('/qr/:qrCode', tableController.getTableByQRCode);
 // Get all tables (Public for customer to view available tables)
 router.get('/', tableController.getAllTables);
 
-// Get table by ID
-router.get('/:id', tableController.getTableById);
-
 // Get table status summary
 router.get('/status/summary', tableController.getTableStatusSummary);
+
+// Get table by ID
+router.get('/:id', tableController.getTableById);
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // PROTECTED ROUTES - ADMIN & MANAGER

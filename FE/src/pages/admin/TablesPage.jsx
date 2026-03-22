@@ -24,6 +24,10 @@ const TablesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterLocation, setFilterLocation] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(8);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,6 +38,7 @@ const TablesPage = () => {
 
   // QR code state
   const [qrCodeData, setQrCodeData] = useState(null);
+  const [qrLoading, setQrLoading] = useState(false);
 
   // Fetch tables
   const fetchTables = useCallback(async () => {
@@ -41,7 +46,13 @@ const TablesPage = () => {
       setLoading(true);
       const params = {
         restaurantId: user?.restaurantId,
+        page: currentPage,
+        limit: pageSize,
       };
+
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
 
       if (filterStatus !== 'all') {
         params.status = filterStatus;
@@ -53,13 +64,15 @@ const TablesPage = () => {
 
       const response = await tableApi.getAll(params);
       setTables(response.data.tables || []);
+      setTotalItems(response.data.total || 0);
+      setTotalPages(response.data.totalPages || 1);
     } catch (error) {
       console.error('Fetch tables error:', error);
       toast.error('Không thể tải danh sách bàn ăn');
     } finally {
       setLoading(false);
     }
-  }, [user?.restaurantId, filterStatus, filterLocation]);
+  }, [user?.restaurantId, filterStatus, filterLocation, searchTerm, currentPage, pageSize]);
 
   useEffect(() => {
     if (user?.restaurantId) {
@@ -67,10 +80,9 @@ const TablesPage = () => {
     }
   }, [user?.restaurantId, fetchTables]);
 
-  // Client-side filtering (search)
-  const filteredTables = tables.filter((table) =>
-    table.tableNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, filterLocation]);
 
   // Get unique locations
   const locations = [...new Set(tables.map(t => t.location).filter(Boolean))];
@@ -155,8 +167,22 @@ const TablesPage = () => {
   // QR code handlers
   const handleShowQRCode = async (table) => {
     setSelectedTable(table);
-    setQrCodeData(table.qrCode);
+    setQrLoading(true);
     setIsQRDialogOpen(true);
+
+    try {
+      const response = await tableApi.generateQRCode(table.id, {
+        regenerate: false,
+        format: 'url',
+      });
+      setQrCodeData(response.data?.qrCode || table.qrCode || null);
+    } catch (error) {
+      console.error('Load QR error:', error);
+      setQrCodeData(table.qrCode || null);
+      toast.error('Không thể tải mã QR');
+    } finally {
+      setQrLoading(false);
+    }
   };
 
   const handleRegenerateQRCode = async (table) => {
@@ -272,7 +298,7 @@ const TablesPage = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="card">
           <p className="text-sm text-gray-600 mb-1">Tổng bàn</p>
-          <p className="text-2xl font-bold text-gray-900">{tables.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{totalItems}</p>
         </div>
         <div className="card">
           <p className="text-sm text-gray-600 mb-1">Trống</p>
@@ -299,7 +325,7 @@ const TablesPage = () => {
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
         </div>
-      ) : filteredTables.length === 0 ? (
+      ) : tables.length === 0 ? (
         <div className="card text-center py-12">
           <p className="text-gray-500">
             {searchTerm
@@ -309,7 +335,7 @@ const TablesPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredTables.map((table) => (
+          {tables.map((table) => (
             <div
               key={table.id}
               className="card hover:shadow-lg transition-shadow"
@@ -388,6 +414,32 @@ const TablesPage = () => {
         </div>
       )}
 
+      {!loading && totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+          <p className="text-sm text-gray-600">
+            Trang {currentPage}/{totalPages} - Tổng {totalItems} bàn
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Trước
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Sau
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Modals */}
       <TableModal
         isOpen={isModalOpen}
@@ -440,7 +492,7 @@ const TablesPage = () => {
 
                   {/* QR Code display */}
                   <div className="flex justify-center mb-6">
-                    {qrCodeData ? (
+                    {!qrLoading && qrCodeData ? (
                       <img
                         src={qrCodeData}
                         alt={`QR Code bàn ${selectedTable?.tableNumber}`}
@@ -448,7 +500,7 @@ const TablesPage = () => {
                       />
                     ) : (
                       <div className="w-64 h-64 flex items-center justify-center bg-gray-100 rounded-lg">
-                        <p className="text-gray-500">Đang tải...</p>
+                        <p className="text-gray-500">{qrLoading ? 'Đang tải...' : 'Không có ảnh QR'}</p>
                       </div>
                     )}
                   </div>

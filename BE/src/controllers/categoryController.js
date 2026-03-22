@@ -30,6 +30,9 @@ const getAllCategories = async (req, res) => {
 
     return successResponse(res, {
       total: data.total,
+      page: data.page,
+      limit: data.limit,
+      totalPages: data.totalPages,
       categories: data.categories
     }, 'Lấy danh sách danh mục thành công');
   } catch (error) {

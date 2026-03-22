@@ -35,9 +35,45 @@ const buildAllowedOrigins = () => {
 
 const allowedOrigins = buildAllowedOrigins();
 
+const isPrivateLanOrigin = (origin) => {
+  if (!origin) return false;
+
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname;
+
+    if (['localhost', '127.0.0.1', '::1'].includes(host)) {
+      return true;
+    }
+
+    if (host.startsWith('192.168.')) {
+      return true;
+    }
+
+    if (host.startsWith('10.')) {
+      return true;
+    }
+
+    if (host.startsWith('172.')) {
+      const second = Number(host.split('.')[1]);
+      if (Number.isInteger(second) && second >= 16 && second <= 31) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 const corsOrigin = (origin, callback) => {
+  const allowPrivateLanInDev =
+    process.env.NODE_ENV === 'development' &&
+    String(process.env.CORS_ALLOW_PRIVATE_LAN || 'true').toLowerCase() !== 'false';
+
   // Allow non-browser tools (curl/Postman) that do not send Origin.
-  if (!origin || allowedOrigins.has(origin)) {
+  if (!origin || allowedOrigins.has(origin) || (allowPrivateLanInDev && isPrivateLanOrigin(origin))) {
     callback(null, true);
     return;
   }

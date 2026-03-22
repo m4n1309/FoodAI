@@ -1,6 +1,6 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import db from '../models/index.js';
 import {
   generateQRToken,
@@ -13,63 +13,39 @@ import {
 import { StatusCodes } from 'http-status-codes';
 import { ServiceError } from './serviceError.js';
 
-const getBackendBaseUrl = () => {
-  return process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const qrCodeStorageDir = path.join(__dirname, '..', '..', 'public', 'qrcodes');
+
+const normalizeUrl = (url) => (url || '').replace(/\/$/, '');
+
+const resolveBackendBaseUrl = ({ requestHost } = {}) => {
+  const host = String(requestHost || '').trim();
+
+  if (process.env.NODE_ENV === 'development' && host) {
+    return `http://${host}`;
+  }
+
+  const configured = (process.env.BACKEND_URL || '').trim();
+  if (configured) {
+    return normalizeUrl(configured);
+  }
+
+  if (host) {
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    return `${protocol}://${host}`;
+  }
+
+  return `http://localhost:${process.env.PORT || 3000}`;
 };
 
 const getQRCodeFilename = (table) => `table-${table.restaurantId}-${table.tableNumber}-qr.png`;
 
-const getQRCodePublicUrl = (table) => `${getBackendBaseUrl()}/qrcodes/${getQRCodeFilename(table)}`;
+const getQRCodePublicUrl = (table, requestHost) => `${resolveBackendBaseUrl({ requestHost })}/qrcodes/${getQRCodeFilename(table)}`;
 
-const getLanIPv4 = () => {
-  const nets = os.networkInterfaces();
-
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name] || []) {
-      if (net.family !== 'IPv4' || net.internal) continue;
-      return net.address;
-    }
-  }
-
-  return null;
-};
-
-const normalizeUrl = (url) => (url || '').replace(/\/$/, '');
-
-const resolveFrontendBaseUrl = ({ requestHost }) => {
-  const configured = (process.env.FRONTEND_URL || '').trim();
-
-  if (configured) {
-    try {
-      const parsed = new URL(configured);
-      const isLocalConfig = ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
-
-      if (process.env.NODE_ENV === 'development') {
-        parsed.protocol = 'http:';
-      }
-
-      if (process.env.NODE_ENV === 'development' && isLocalConfig) {
-        const lanIp = getLanIPv4();
-        if (lanIp) parsed.hostname = lanIp;
-      }
-
-      return normalizeUrl(parsed.toString());
-    } catch {
-      return normalizeUrl(configured);
-    }
-  }
-
-  const hostName = String(requestHost || '').split(':')[0];
-  const lanIp = hostName && !['localhost', '127.0.0.1', '::1'].includes(hostName)
-    ? hostName
-    : (getLanIPv4() || 'localhost');
-
-  return `http://${lanIp}:5173`;
-};
-
-const saveQRCodeImage = async (table, qrToken, frontendBaseUrl) => {
-  const scanUrl = generateQRScanURL(qrToken, frontendBaseUrl);
-  const uploadsDir = path.join(process.cwd(), 'public', 'qrcodes');
+const saveQRCodeImage = async (table, qrToken, requestHost) => {
+  const scanUrl = generateQRScanURL(qrToken, resolveBackendBaseUrl({ requestHost }));
+  const uploadsDir = qrCodeStorageDir;
 
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
@@ -83,19 +59,20 @@ const saveQRCodeImage = async (table, qrToken, frontendBaseUrl) => {
   return {
     filename,
     scanUrl,
-    publicUrl: getQRCodePublicUrl(table)
+    publicUrl: getQRCodePublicUrl(table, requestHost)
   };
 };
 
-const formatTableResponse = (table) => {
+const formatTableResponse = (table, requestHost) => {
   const tableData = table.toJSON ? table.toJSON() : { ...table };
   const qrToken = tableData.qrCode;
+  const qrPublicUrl = qrToken ? getQRCodePublicUrl(tableData, requestHost) : null;
 
   return {
     ...tableData,
     qrToken,
-    qrCode: qrToken ? getQRCodePublicUrl(tableData) : null,
-    qrCodeUrl: qrToken ? getQRCodePublicUrl(tableData) : null
+    qrCode: qrPublicUrl,
+    qrCodeUrl: qrPublicUrl
   };
 };
 
@@ -111,8 +88,12 @@ const getAllTables = async (query) => {
     status,
     location,
     isActive,
+    search,
     sort = 'tableNumber',
-    order = 'ASC'
+    order = 'ASC',
+    page = 1,
+    limit = 6,
+    requestHost
   } = query;
 
   const where = {};
@@ -120,26 +101,40 @@ const getAllTables = async (query) => {
   if (status) where.status = status;
   if (location) where.location = location;
   if (isActive !== undefined) where.isActive = isActive === 'true';
+  if (search) {
+    where.tableNumber = {
+      [db.Sequelize.Op.iLike]: `%${String(search).trim()}%`
+    };
+  }
 
-  const tables = await db.Table.findAll({
+  const numericPage = Math.max(parseInt(page, 10) || 1, 1);
+  const numericLimit = Math.max(parseInt(limit, 10) || 6, 1);
+  const offset = (numericPage - 1) * numericLimit;
+
+  const { count, rows: tables } = await db.Table.findAndCountAll({
     where,
     include: [{
       model: db.Restaurant,
       as: 'restaurant',
       attributes: ['id', 'name', 'slug']
     }],
-    order: [[sort, String(order).toUpperCase()]]
+    order: [[sort, String(order).toUpperCase()]],
+    limit: numericLimit,
+    offset
   });
 
-  const formattedTables = tables.map(formatTableResponse);
+  const formattedTables = tables.map((table) => formatTableResponse(table, requestHost));
 
   return {
-    total: formattedTables.length,
+    total: count,
+    page: numericPage,
+    limit: numericLimit,
+    totalPages: Math.ceil(count / numericLimit),
     tables: formattedTables
   };
 };
 
-const getTableById = async (id) => {
+const getTableById = async (id, requestHost) => {
   const table = await db.Table.findByPk(id, {
     include: [{
       model: db.Restaurant,
@@ -155,7 +150,7 @@ const getTableById = async (id) => {
   const isOccupied = await table.isOccupied();
   const currentOrder = isOccupied ? await table.getCurrentOrder() : null;
 
-  const data = formatTableResponse(table);
+  const data = formatTableResponse(table, requestHost);
   data.isOccupied = isOccupied;
   data.currentOrder = currentOrder;
 
@@ -203,9 +198,13 @@ const createTable = async ({ body, staffRestaurantId, requestHost }) => {
     }]
   });
 
-  await saveQRCodeImage(createdTable, qrToken, resolveFrontendBaseUrl({ requestHost }));
+  await saveQRCodeImage(
+    createdTable,
+    qrToken,
+    requestHost
+  );
 
-  return formatTableResponse(createdTable);
+  return formatTableResponse(createdTable, requestHost);
 };
 
 const updateTable = async ({ id, updateData, staffRestaurantId, requestHost }) => {
@@ -248,9 +247,13 @@ const updateTable = async ({ id, updateData, staffRestaurantId, requestHost }) =
     }]
   });
 
-  await saveQRCodeImage(updatedTable, table.qrCode, resolveFrontendBaseUrl({ requestHost }));
+  await saveQRCodeImage(
+    updatedTable,
+    table.qrCode,
+    requestHost
+  );
 
-  return formatTableResponse(updatedTable);
+  return formatTableResponse(updatedTable, requestHost);
 };
 
 const deleteTable = async ({ id, staffRestaurantId }) => {
@@ -314,7 +317,7 @@ const generateTableQRCode = async ({ id, format = 'url', regenerate = false, sta
   const { filename, scanUrl, publicUrl } = await saveQRCodeImage(
     table,
     qrToken,
-    resolveFrontendBaseUrl({ requestHost })
+    requestHost
   );
 
   if (format === 'buffer' || format === 'download') {

@@ -72,7 +72,7 @@ const generateQRCodeBuffer = async (qrToken) => {
 
 const generateQRScanURL = (qrToken, baseUrl) => {
   const normalizedBaseUrl = (baseUrl || '').replace(/\/$/, '');
-  return `${normalizedBaseUrl}/customer/menu/${encodeURIComponent(qrToken)}`;
+  return `${normalizedBaseUrl}/tables/qr/${encodeURIComponent(qrToken)}`;
 }
 
 const validateQRToken = (token) => {

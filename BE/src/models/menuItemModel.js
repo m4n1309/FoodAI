@@ -60,7 +60,7 @@ const MenuItem = (sequelize, DataTypes) => {
       allowNull: true,
     },
     imageUrl: {
-      type: DataTypes.JSON,
+      type: DataTypes.STRING,
       allowNull: true,
     },
     preparationTime: {

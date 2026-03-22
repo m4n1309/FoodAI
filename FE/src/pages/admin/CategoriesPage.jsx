@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth.js';
 import AdminLayout from '../../components/admin/AdminLayout';
 import CategoryModal from '../../components/admin/CategoryModal';
@@ -21,6 +21,10 @@ const CategoriesPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterActive, setFilterActive] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(6);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,14 +33,20 @@ const CategoriesPage = () => {
   const [modalLoading, setModalLoading] = useState(false);
 
   // Fetch categories
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
       const params = {
         restaurantId: user?.restaurantId,
         sort: 'displayOrder',
         order: 'ASC',
+        page: currentPage,
+        limit: pageSize,
       };
+
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
 
       if (filterActive !== 'all') {
         params.isActive = filterActive === 'active';
@@ -44,24 +54,25 @@ const CategoriesPage = () => {
 
       const response = await categoryApi.getAll(params);
       setCategories(response.data.categories || []);
+      setTotalItems(response.data.total || 0);
+      setTotalPages(response.data.totalPages || 1);
     } catch (error) {
       console.error('Fetch categories error:', error);
       toast.error('Không thể tải danh sách danh mục');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.restaurantId, filterActive, searchTerm, currentPage, pageSize]);
 
   useEffect(() => {
     if (user?.restaurantId) {
       fetchCategories();
     }
-  }, [user, filterActive]);
+  }, [user?.restaurantId, fetchCategories]);
 
-  // Filtered categories based on search
-  const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterActive]);
 
   // Handle create/edit
   const handleOpenModal = (category = null) => {
@@ -192,7 +203,7 @@ const CategoriesPage = () => {
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
         </div>
-      ) : filteredCategories.length === 0 ? (
+      ) : categories.length === 0 ? (
         <div className="card text-center py-12">
           <p className="text-gray-500">
             {searchTerm
@@ -202,7 +213,7 @@ const CategoriesPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCategories.map((category) => (
+          {categories.map((category) => (
             <div key={category.id} className="card hover:shadow-lg transition-shadow">
               {/* ✅ SỬA: Image with fallback */}
               <ImageWithFallback
@@ -221,8 +232,8 @@ const CategoriesPage = () => {
                   </h3>
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${category.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
                       }`}
                   >
                     {category.isActive ? 'Hoạt động' : 'Đã ẩn'}
@@ -265,6 +276,32 @@ const CategoriesPage = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {!loading && totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+          <p className="text-sm text-gray-600">
+            Trang {currentPage}/{totalPages} - Tổng {totalItems} danh mục
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Trước
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Sau
+            </button>
+          </div>
         </div>
       )}
 

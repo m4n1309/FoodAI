@@ -21,15 +21,34 @@ const ensureStaffRestaurantAccess = (staffRestaurantId, targetRestaurantId, mess
   }
 };
 
-const getAllCategories = async ({ restaurantId, isActive, sort = 'displayOrder', order = 'ASC' }) => {
+const getAllCategories = async ({
+  restaurantId,
+  isActive,
+  search,
+  sort = 'displayOrder',
+  order = 'ASC',
+  page = 1,
+  limit = 6
+}) => {
   const where = {};
 
   if (restaurantId) where.restaurantId = restaurantId;
   if (isActive !== undefined) where.isActive = isActive === 'true';
+  if (search) {
+    where.name = {
+      [Op.iLike]: `%${String(search).trim()}%`
+    };
+  }
 
-  const categories = await db.Category.findAll({
+  const numericPage = Math.max(parseInt(page, 10) || 1, 1);
+  const numericLimit = Math.max(parseInt(limit, 10) || 6, 1);
+  const offset = (numericPage - 1) * numericLimit;
+
+  const { count, rows: categories } = await db.Category.findAndCountAll({
     where,
-    order: [[sort, String(order).toUpperCase()]]
+    order: [[sort, String(order).toUpperCase()]],
+    limit: numericLimit,
+    offset
   });
 
   const categoriesWithCount = await Promise.all(
@@ -48,7 +67,10 @@ const getAllCategories = async ({ restaurantId, isActive, sort = 'displayOrder',
   );
 
   return {
-    total: categoriesWithCount.length,
+    total: count,
+    page: numericPage,
+    limit: numericLimit,
+    totalPages: Math.ceil(count / numericLimit),
     categories: categoriesWithCount
   };
 };
