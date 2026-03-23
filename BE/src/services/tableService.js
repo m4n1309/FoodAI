@@ -103,7 +103,7 @@ const getAllTables = async (query) => {
   if (isActive !== undefined) where.isActive = isActive === 'true';
   if (search) {
     where.tableNumber = {
-      [db.Sequelize.Op.iLike]: `%${String(search).trim()}%`
+      [db.Sequelize.Op.like]: `%${String(search).trim()}%`
     };
   }
 

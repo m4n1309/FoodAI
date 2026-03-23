@@ -36,8 +36,8 @@ const getAllCategories = async ({
   if (isActive !== undefined) where.isActive = isActive === 'true';
   if (search) {
     where.name = {
-      [Op.iLike]: `%${String(search).trim()}%`
-    };
+      [Op.like]: `%${String(search).trim()}%`
+    };  
   }
 
   const numericPage = Math.max(parseInt(page, 10) || 1, 1);

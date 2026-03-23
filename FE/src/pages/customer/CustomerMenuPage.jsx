@@ -8,12 +8,6 @@ const formatMoney = (v) => {
   return n.toLocaleString('vi-VN') + ' đ';
 };
 
-const normalizeRate = (rate) => {
-  const n = Number(rate || 0);
-  if (!Number.isFinite(n) || n <= 0) return 0;
-  return n > 1 ? n / 100 : n;
-};
-
 const CustomerMenuPage = () => {
   const { qrCode } = useParams();
   const location = useLocation();
@@ -46,28 +40,13 @@ const CustomerMenuPage = () => {
   }, [menuItems, search, categoryId]);
 
   const cartTotals = useMemo(() => {
-    const items = cart?.items || [];
-    const subtotal = items.reduce((sum, item) => {
-      const qty = Number(item.quantity || 0);
-      const unitPrice = Number(item.unitPrice || 0);
-      const lineTotal = Number(item.totalPrice || unitPrice * qty || 0);
-      return sum + lineTotal;
-    }, 0);
-
-    const taxRate = normalizeRate(bootstrap?.restaurant?.taxRate);
-    const serviceRate = normalizeRate(bootstrap?.restaurant?.serviceChargeRate);
-
-    const taxAmount = subtotal * taxRate;
-    const serviceCharge = subtotal * serviceRate;
-    const totalAmount = subtotal + taxAmount + serviceCharge;
-
     return {
-      subtotal,
-      taxAmount,
-      serviceCharge,
-      totalAmount
+      subtotal: Number(cart?.subtotal || 0),
+      taxAmount: Number(cart?.taxAmount || 0),
+      serviceCharge: Number(cart?.serviceCharge || 0),
+      totalAmount: Number(cart?.totalAmount || 0)
     };
-  }, [cart, bootstrap]);
+  }, [cart]);
 
   const loadAll = async () => {
     try {

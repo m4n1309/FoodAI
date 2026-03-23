@@ -4,7 +4,34 @@ import { ServiceError } from './serviceError.js';
 
 const CART_IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
-const generateOrderNumber = (restaurantId) => `ORD${restaurantId}-${Date.now()}`;
+const fallbackOrderNumber = (restaurantId) => `ORD${restaurantId}-${Date.now()}`;
+
+const generateOrderNumberFromDb = async ({ restaurantId, transaction }) => {
+  try {
+    await db.sequelize.query(
+      'CALL sp_generate_order_number(:restaurantId, @p_order_number)',
+      {
+        replacements: { restaurantId },
+        transaction
+      }
+    );
+
+    const rows = await db.sequelize.query(
+      'SELECT @p_order_number AS orderNumber',
+      {
+        type: db.Sequelize.QueryTypes.SELECT,
+        transaction
+      }
+    );
+
+    const orderNumber = rows?.[0]?.orderNumber;
+    if (orderNumber) return orderNumber;
+  } catch (error) {
+    console.warn('sp_generate_order_number is unavailable, fallback to app-generated order number');
+  }
+
+  return fallbackOrderNumber(restaurantId);
+};
 
 const isExpired = (order) => {
   if (!order?.updatedAt) return false;
@@ -75,13 +102,19 @@ const createOrGetCart = async ({ sessionId, isNewSession, restaurantId, tableId 
   }
 
   if (!cart) {
-    cart = await db.Order.create({
-      orderNumber: generateOrderNumber(restaurantId),
-      restaurantId,
-      tableId,
-      sessionId,
-      orderStatus: 'cart',
-      paymentStatus: 'pending'
+    await db.sequelize.transaction(async (transaction) => {
+      const orderNumber = await generateOrderNumberFromDb({ restaurantId, transaction });
+
+      cart = await db.Order.create({
+        orderNumber,
+        restaurantId,
+        tableId,
+        sessionId,
+        orderStatus: 'cart',
+        paymentStatus: 'pending'
+      }, {
+        transaction
+      });
     });
   }
 

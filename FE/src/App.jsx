@@ -7,7 +7,7 @@ import DashboardPage from './pages/admin/DashboardPage.jsx';
 import CategoriesPage from './pages/admin/CategoriesPage.jsx';
 import MenuItemsPage from './pages/admin/MenuItemsPage.jsx';
 import TablesPage from './pages/admin/TablesPage.jsx';
-import CustomerMenuPage from './pages/customer/customerMenuPage';
+import CustomerMenuPage from './pages/customer/CustomerMenuPage';
 import { toastOptions } from './config/toastConfig.js';
 
 function ScanRedirectPage() {

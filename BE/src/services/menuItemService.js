@@ -55,9 +55,9 @@ const getAllMenuItems = async (query) => {
 
   if (search) {
     where[Op.or] = [
-      { name: { [Op.iLike]: `%${search}%` } },
-      { description: { [Op.iLike]: `%${search}%` } },
-      { ingredients: { [Op.iLike]: `%${search}%` } }
+      { name: { [Op.like]: `%${search}%` } },
+      { description: { [Op.like]: `%${search}%` } },
+      { ingredients: { [Op.like]: `%${search}%` } }
     ];
   }
 
