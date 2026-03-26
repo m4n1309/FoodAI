@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import MenuItemDetailModal from '../../components/customer/MenuItemDetailModal';
+import PlaceOrderModal from '../../components/customer/PlaceOrderModal';
 import { useLocation, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import customerApi from '../../services/customerService.js';
@@ -17,12 +19,21 @@ const CustomerMenuPage = () => {
     return queryQr || '';
   }, [qrCode, location.search]);
 
+
   const [loading, setLoading] = useState(true);
   const [bootstrap, setBootstrap] = useState(null);
   const [cart, setCart] = useState(null);
 
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('all');
+
+  // Menu item detail modal
+  const [selectedMenuItem, setSelectedMenuItem] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  // Place order modal + placed order result
+  const [placeOrderModalOpen, setPlaceOrderModalOpen] = useState(false);
+  const [placedOrder, setPlacedOrder] = useState(null);
 
   const restaurantId = bootstrap?.table?.restaurantId;
   const tableId = bootstrap?.table?.id;
@@ -139,11 +150,31 @@ const CustomerMenuPage = () => {
     }
   };
 
+  const handlePlaceOrderSuccess = (order) => {
+    setPlacedOrder(order);
+    // The cart is now 'pending' — clear local cart state so user can't keep editing
+    setCart(null);
+  };
+
   if (loading) return <div className="mx-auto max-w-5xl p-4">Loading...</div>;
   if (!bootstrap) return <div className="mx-auto max-w-5xl p-4">Không load được dữ liệu từ QR.</div>;
 
   return (
     <div className="mx-auto max-w-5xl p-4">
+      {/* ✅ Order placed success banner */}
+      {placedOrder && (
+        <div className="mb-4 rounded-xl border border-green-300 bg-green-50 px-4 py-3">
+          <div className="font-semibold text-green-800">🎉 Đơn hàng đã được gửi thành công!</div>
+          <div className="mt-1 text-sm text-green-700">
+            Mã đơn: <b>{placedOrder.orderNumber}</b> • Trạng thái:{' '}
+            <span className="inline-block rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
+              Đang chờ xác nhận
+            </span>
+          </div>
+          <div className="mt-1 text-xs text-green-600">Nhân viên sẽ xử lý đơn của bạn trong giây lát. Cảm ơn!</div>
+        </div>
+      )}
+
       <div className="mb-3 flex items-start justify-between gap-3 border-b border-gray-200 pb-3">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">{bootstrap.restaurant?.name || 'Restaurant'}</h1>
@@ -184,7 +215,14 @@ const CustomerMenuPage = () => {
 
           <div className="grid grid-cols-1 gap-3">
             {filteredMenuItems.map((it) => (
-              <div key={it.id} className="rounded-xl border border-gray-200 bg-white p-3">
+              <div
+                key={it.id}
+                className="rounded-xl border border-gray-200 bg-white p-3 cursor-pointer hover:bg-gray-50"
+                onClick={() => {
+                  setSelectedMenuItem(it);
+                  setModalOpen(true);
+                }}
+              >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex-1">
                     <div className="font-bold text-gray-900">{it.name}</div>
@@ -194,7 +232,13 @@ const CustomerMenuPage = () => {
                       {it.discountPrice ? <span className="text-gray-500"> (gốc {formatMoney(it.price)})</span> : null}
                     </div>
                   </div>
-                  <button className="cursor-pointer rounded-lg border border-blue-700 bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700" onClick={() => handleAddMenuItem(it.id)}>
+                  <button
+                    className="cursor-pointer rounded-lg border border-blue-700 bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddMenuItem(it.id);
+                    }}
+                  >
                     Thêm
                   </button>
                 </div>
@@ -255,13 +299,13 @@ const CustomerMenuPage = () => {
                 <div className="mt-1.5 text-base">Total: <b>{formatMoney(cartTotals.totalAmount)}</b></div>
               </div>
 
-              {/* next: checkout */}
+              {/* ✅ Place order button */}
               <button
                 className="mt-3 w-full cursor-pointer rounded-lg border border-blue-700 bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => toast('Checkout sẽ làm ở bước 4.6')}
+                onClick={() => setPlaceOrderModalOpen(true)}
                 disabled={(cart.items || []).length === 0}
               >
-                Tiếp tục đặt món
+                Đặt món
               </button>
             </>
           )}
@@ -271,6 +315,21 @@ const CustomerMenuPage = () => {
       <div className="mt-3.5 text-xs text-gray-500">
         QR: <code>{effectiveQrCode}</code> • restaurantId: {String(restaurantId || '')} • tableId: {String(tableId || '')}
       </div>
+
+      {/* Menu item detail modal */}
+      <MenuItemDetailModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        menuItem={selectedMenuItem}
+      />
+
+      {/* ✅ Place order modal */}
+      <PlaceOrderModal
+        open={placeOrderModalOpen}
+        onClose={() => setPlaceOrderModalOpen(false)}
+        cart={cart}
+        onSuccess={handlePlaceOrderSuccess}
+      />
     </div>
   );
 };

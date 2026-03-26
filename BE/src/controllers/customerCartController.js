@@ -86,10 +86,39 @@ const removeItem = async (req, res) => {
   }
 };
 
+// POST /customer/orders
+const placeOrder = async (req, res) => {
+  try {
+    const data = await customerCartService.placeOrder({
+      sessionId: req.customerSessionId,
+      orderId: req.body.orderId,
+      customerName: req.body.customerName,
+      customerNote: req.body.customerNote
+    });
+
+    // Notify staff via Socket.IO
+    const io = req.app.locals.io;
+    if (io && data.order?.restaurantId) {
+      io.to(`restaurant:${data.order.restaurantId}`).emit('order_placed', {
+        orderId: data.order.id,
+        orderNumber: data.order.orderNumber,
+        tableId: data.order.tableId,
+        restaurantId: data.order.restaurantId,
+        itemCount: (data.order.items || []).length
+      });
+    }
+
+    return successResponse(res, data, 'Order placed successfully', StatusCodes.CREATED);
+  } catch (err) {
+    return handleServiceError(res, err);
+  }
+};
+
 export default {
   createOrGetCart,
   getCart,
   addItem,
   updateItem,
-  removeItem
+  removeItem,
+  placeOrder
 };

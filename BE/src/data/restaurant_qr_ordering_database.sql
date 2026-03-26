@@ -2,7 +2,6 @@
 -- DATABASE SCHEMA FOR QR CODE RESTAURANT ORDERING SYSTEM
 -- Hệ thống đặt món qua QR Code cho Nhà hàng
 -- =====================================================
-
 -- Bảng Nhà hàng (Restaurants)
 CREATE TABLE restaurants (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,

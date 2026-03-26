@@ -308,10 +308,61 @@ const removeItem = async ({ sessionId, id }) => {
   return { sessionId, cart: cartFull };
 };
 
+/**
+ * Chuyển giỏ hàng (cart) thành đơn hàng chính thức (pending).
+ * Validate: session đúng, status === 'cart', chưa hết hạn, có ít nhất 1 item.
+ */
+const placeOrder = async ({ sessionId, orderId, customerName, customerNote }) => {
+  if (!orderId) {
+    throw new ServiceError('orderId is required', StatusCodes.BAD_REQUEST);
+  }
+
+  // Verify ownership & cart validity
+  const cart = await ensureCartOwnership({ orderId, sessionId });
+
+  // Must have at least one item
+  const itemCount = await db.OrderItem.count({ where: { orderId: cart.id } });
+  if (itemCount === 0) {
+    throw new ServiceError('Cannot place an empty order', StatusCodes.BAD_REQUEST);
+  }
+
+  await db.sequelize.transaction(async (transaction) => {
+    await cart.update({
+      orderStatus: 'pending',
+      customerName: (customerName || '').trim() || null,
+      customerNote: (customerNote || '').trim() || null
+    }, { transaction });
+
+    // Try calling the total-calculation stored procedure if it exists
+    try {
+      await db.sequelize.query(
+        'CALL sp_calculate_order_total(:orderId)',
+        { replacements: { orderId: cart.id }, transaction }
+      );
+    } catch {
+      // SP optional — if unavailable, totals remain as-is (set by item triggers)
+    }
+  });
+
+  const fullOrder = await db.Order.findByPk(cart.id, {
+    include: [{
+      model: db.OrderItem,
+      as: 'items',
+      include: [
+        { model: db.MenuItem, as: 'menuItem', required: false },
+        { model: db.Combo, as: 'combo', required: false }
+      ]
+    }]
+  });
+
+  return { sessionId, order: fullOrder };
+};
+
 export default {
   createOrGetCart,
   getCart,
   addItem,
   updateItem,
-  removeItem
+  removeItem,
+  placeOrder
 };

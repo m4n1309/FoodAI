@@ -37,5 +37,21 @@ export const initSocketHandlers = (io) => {
       if (!orderId) return;
       socket.leave(`order:${orderId}`);
     });
+
+    // staff join restaurant room to receive order_placed events
+    socket.on('join_restaurant', ({ restaurantId }) => {
+      if (!restaurantId) {
+        socket.emit('join_restaurant_error', { message: 'restaurantId is required' });
+        return;
+      }
+      const room = `restaurant:${restaurantId}`;
+      socket.join(room);
+      socket.emit('join_restaurant_success', { restaurantId, room });
+    });
+
+    socket.on('leave_restaurant', ({ restaurantId }) => {
+      if (!restaurantId) return;
+      socket.leave(`restaurant:${restaurantId}`);
+    });
   });
 };

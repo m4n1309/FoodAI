@@ -7,6 +7,7 @@ import DashboardPage from './pages/admin/DashboardPage.jsx';
 import CategoriesPage from './pages/admin/CategoriesPage.jsx';
 import MenuItemsPage from './pages/admin/MenuItemsPage.jsx';
 import TablesPage from './pages/admin/TablesPage.jsx';
+import OrdersPage from './pages/admin/OrdersPage.jsx';
 import CustomerMenuPage from './pages/customer/CustomerMenuPage';
 import { toastOptions } from './config/toastConfig.js';
 
@@ -66,6 +67,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'manager']}>
                 <TablesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/orders"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'manager', 'waiter']}>
+                <OrdersPage />
               </ProtectedRoute>
             }
           />

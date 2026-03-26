@@ -17,4 +17,7 @@ router.post('/cart/items', requireCustomerSession, customerCartController.addIte
 router.patch('/cart/items/:id', requireCustomerSession, customerCartController.updateItem);
 router.delete('/cart/items/:id', requireCustomerSession, customerCartController.removeItem);
 
+// ✅ Place order (cart → pending)
+router.post('/orders', requireCustomerSession, customerCartController.placeOrder);
+
 export default router;
