@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { roleCheck } from '../middleware/roleCheck.js';
 import orderController from '../controllers/orderController.js';
+import paymentRoute from './paymentRoute.js';
 
 const router = express.Router();
 
@@ -15,6 +16,9 @@ router.get('/', authenticate, roleCheck(allowedRoles), orderController.getAllOrd
 router.get('/:id', authenticate, roleCheck(allowedRoles), orderController.getOrderById);
 
 // ✅ Update order status
-router.patch('/:id/status', authenticate, roleCheck(allowedRoles), orderController.updateOrderStatus);
+router.patch('/:id/status', authenticate, roleCheck(['admin', 'manager', 'waiter', 'kitchen', 'cashier']), orderController.updateOrderStatus);
+
+// Mount nested payment route
+router.use('/:orderId/payments', paymentRoute);
 
 export default router;

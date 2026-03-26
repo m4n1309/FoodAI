@@ -5,6 +5,7 @@ import {
   ShoppingBagIcon,
   TableCellsIcon,
   ShoppingCartIcon,
+  FireIcon,
   ChartBarIcon,
   CogIcon,
   ArrowRightOnRectangleIcon,
@@ -44,6 +45,12 @@ const Sidebar = ({ isOpen, onClose }) => {
       href: '/admin/orders',
       icon: ShoppingCartIcon,
       roles: ['admin', 'manager', 'waiter'],
+    },
+    {
+      name: 'Bếp KDS',
+      href: '/admin/kitchen',
+      icon: FireIcon,
+      roles: ['admin', 'manager', 'kitchen'],
     },
     {
       name: 'Báo cáo',

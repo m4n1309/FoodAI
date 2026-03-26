@@ -6,7 +6,7 @@ import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth(); // add user
 
   const [formData, setFormData] = useState({
     username: '',
@@ -17,11 +17,15 @@ const LoginPage = () => {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (isAuthenticated) {
-      const from = location.state?.from?.pathname || '/admin/dashboard';
+    if (isAuthenticated && user) {
+      let defaultPath = '/admin/dashboard';
+      if (user.role === 'kitchen') defaultPath = '/admin/kitchen';
+      else if (['waiter', 'cashier'].includes(user.role)) defaultPath = '/admin/orders';
+
+      const from = location.state?.from?.pathname || defaultPath;
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, user, navigate, location]);
 
   const handleChange = (e) => {
     setFormData({
@@ -37,7 +41,13 @@ const LoginPage = () => {
     const result = await login(formData.username, formData.password);
 
     if (result.success) {
-      const from = location.state?.from?.pathname || '/admin/dashboard';
+      // Get the returned user from result to handle role properly immediately after login
+      const role = result.user?.role || user?.role;
+      let defaultPath = '/admin/dashboard';
+      if (role === 'kitchen') defaultPath = '/admin/kitchen';
+      else if (['waiter', 'cashier'].includes(role)) defaultPath = '/admin/orders';
+
+      const from = location.state?.from?.pathname || defaultPath;
       navigate(from, { replace: true });
     }
 

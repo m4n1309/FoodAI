@@ -3,6 +3,7 @@ import MenuItemDetailModal from '../../components/customer/MenuItemDetailModal';
 import PlaceOrderModal from '../../components/customer/PlaceOrderModal';
 import { useLocation, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { default as io } from 'socket.io-client';
 import customerApi from '../../services/customerService.js';
 
 const formatMoney = (v) => {
@@ -156,22 +157,86 @@ const CustomerMenuPage = () => {
     setCart(null);
   };
 
+  // ✅ Socket.IO Real-time tracking
+  useEffect(() => {
+    if (!placedOrder?.id || !placedOrder?.sessionId) return;
+    
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const socket = io(apiUrl, { withCredentials: true });
+
+    socket.on('connect', () => {
+      socket.emit('join_order', { orderId: placedOrder.id, sessionId: placedOrder.sessionId });
+    });
+
+    socket.on('order_status_changed', (data) => {
+      setPlacedOrder(prev => prev ? { ...prev, orderStatus: data.status } : null);
+    });
+
+    socket.on('item_status_changed', (data) => {
+      setPlacedOrder(prev => {
+        if (!prev) return null;
+        const newItems = prev.items?.map(it => 
+          it.id === data.itemId ? { ...it, itemStatus: data.status } : it
+        );
+        return { ...prev, items: newItems };
+      });
+    });
+
+    socket.on('payment_confirmed', (data) => {
+      setPlacedOrder(prev => prev ? { ...prev, paymentStatus: 'paid' } : null);
+      toast.success('Đơn hàng của bạn đã thanh toán thành công. Cảm ơn quý khách!');
+    });
+
+    return () => {
+      socket.emit('leave_order', { orderId: placedOrder.id });
+      socket.disconnect();
+    };
+  }, [placedOrder?.id, placedOrder?.sessionId]);
+
   if (loading) return <div className="mx-auto max-w-5xl p-4">Loading...</div>;
   if (!bootstrap) return <div className="mx-auto max-w-5xl p-4">Không load được dữ liệu từ QR.</div>;
 
   return (
     <div className="mx-auto max-w-5xl p-4">
-      {/* ✅ Order placed success banner */}
+      {/* ✅ Order placed success banner & tracking */}
       {placedOrder && (
         <div className="mb-4 rounded-xl border border-green-300 bg-green-50 px-4 py-3">
           <div className="font-semibold text-green-800">🎉 Đơn hàng đã được gửi thành công!</div>
-          <div className="mt-1 text-sm text-green-700">
-            Mã đơn: <b>{placedOrder.orderNumber}</b> • Trạng thái:{' '}
-            <span className="inline-block rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
-              Đang chờ xác nhận
-            </span>
+          <div className="mt-1 flex justify-between items-center text-sm text-green-700">
+            <div>Mã đơn: <b>{placedOrder.orderNumber}</b></div>
+            <div className="font-semibold text-xs whitespace-nowrap bg-yellow-200 px-2 py-1 rounded text-yellow-800">
+              {placedOrder.orderStatus === 'pending' ? 'Chờ xác nhận' :
+               placedOrder.orderStatus === 'confirmed' ? 'Đã xác nhận' :
+               placedOrder.orderStatus === 'preparing' ? 'Đang nấu' :
+               placedOrder.orderStatus === 'ready' ? 'Lên món' :
+               placedOrder.orderStatus === 'serving' ? 'Đang phục vụ' :
+               placedOrder.orderStatus === 'completed' ? 'Hoàn thành' : placedOrder.orderStatus}
+            </div>
+            {placedOrder.paymentStatus === 'paid' && (
+              <div className="font-semibold text-xs whitespace-nowrap bg-green-200 px-2 py-1 rounded text-green-800 ml-2">
+                Đã thanh toán
+              </div>
+            )}
           </div>
-          <div className="mt-1 text-xs text-green-600">Nhân viên sẽ xử lý đơn của bạn trong giây lát. Cảm ơn!</div>
+          <div className="mt-2 pt-2 border-t border-green-200 text-sm">
+            <p className="font-semibold mb-1 text-green-800">Tình trạng các món:</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {(placedOrder.items || []).map(item => (
+                <div key={item.id} className="flex justify-between items-center bg-white/50 p-2 rounded">
+                  <span className="font-medium text-green-900">{item.quantity}x {item.itemName}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    item.itemStatus === 'ready' || item.itemStatus === 'served' ? 'bg-green-200 text-green-900' :
+                    item.itemStatus === 'preparing' ? 'bg-blue-200 text-blue-900' : 'bg-gray-200 text-gray-800'
+                  }`}>
+                    {item.itemStatus === 'ready' ? 'Đã xong' :
+                     item.itemStatus === 'preparing' ? 'Đang nấu' :
+                     item.itemStatus === 'served' ? 'Đã lên' : 'Chờ bếp'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-green-600">Màn hình sẽ tự động cập nhật tình trạng món theo thời gian thực nhờ kết nối trực tiếp đến bếp.</div>
         </div>
       )}
 
