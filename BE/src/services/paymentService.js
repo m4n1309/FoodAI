@@ -49,6 +49,11 @@ const createPayment = async (orderId, restaurantId, paymentData, staffId) => {
       throw new ServiceError('Order not found', StatusCodes.NOT_FOUND);
     }
 
+    // Only allow payment if the order has been fully served
+    if (!['serving', 'completed'].includes(order.orderStatus)) {
+      throw new ServiceError(`Chỉ có thể thanh toán khi đơn hàng đã ra bàn (đang ở trạng thái serving hoặc completed). Trạng thái hiện tại: ${order.orderStatus}`, StatusCodes.BAD_REQUEST);
+    }
+
     // Determine if it fully pays off the order
     const existingPayments = await db.PaymentHistory.findAll({ 
       where: { orderId, paymentStatus: 'completed' },

@@ -65,6 +65,13 @@ const updateOrderStatus = async (req, res) => {
         orderId: order.id,
         status: order.orderStatus
       });
+      // also emit to table room if there is a table
+      if (order.tableId) {
+        io.to(`table:${order.tableId}`).emit('order_status_updated', {
+          orderId: order.id,
+          status: order.orderStatus
+        });
+      }
     }
 
     return successResponse(res, order, 'Order status updated successfully');

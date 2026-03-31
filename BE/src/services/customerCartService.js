@@ -1,6 +1,7 @@
 import db from '../models/index.js';
 import { StatusCodes } from 'http-status-codes';
 import { ServiceError } from './serviceError.js';
+import { Op } from 'sequelize';
 
 const CART_IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
@@ -312,7 +313,7 @@ const removeItem = async ({ sessionId, id }) => {
  * Chuyển giỏ hàng (cart) thành đơn hàng chính thức (pending).
  * Validate: session đúng, status === 'cart', chưa hết hạn, có ít nhất 1 item.
  */
-const placeOrder = async ({ sessionId, orderId, customerName, customerNote }) => {
+const placeOrder = async ({ sessionId, orderId, customerName, customerNote, promotionCode, pointsToRedeem, customerId }) => {
   if (!orderId) {
     throw new ServiceError('orderId is required', StatusCodes.BAD_REQUEST);
   }
@@ -330,7 +331,8 @@ const placeOrder = async ({ sessionId, orderId, customerName, customerNote }) =>
     await cart.update({
       orderStatus: 'pending',
       customerName: (customerName || '').trim() || null,
-      customerNote: (customerNote || '').trim() || null
+      customerNote: (customerNote || '').trim() || null,
+      customerId: customerId || null
     }, { transaction });
 
     // Try calling the total-calculation stored procedure if it exists
@@ -341,6 +343,75 @@ const placeOrder = async ({ sessionId, orderId, customerName, customerNote }) =>
       );
     } catch {
       // SP optional — if unavailable, totals remain as-is (set by item triggers)
+    }
+
+    // Refresh cart to get calculated subtotal and totals
+    const currentOrder = await db.Order.findByPk(cart.id, { transaction });
+    let currentDiscountAmount = 0;
+    
+    // Process Points Redemption (1 point = 10,000 VND value? Or 100 VND? Let's use 100 VND per point to keep it clean)
+    if (pointsToRedeem && currentOrder.customerId) {
+        const customer = await db.Customer.findByPk(currentOrder.customerId, { transaction });
+        if (customer && customer.loyaltyPoints >= pointsToRedeem) {
+            // Assume 1 point = 100 VND discount for this example.
+            const pointsDiscount = Number(pointsToRedeem) * 100;
+            currentDiscountAmount += pointsDiscount;
+            // Deduct points
+            await customer.update({ loyaltyPoints: customer.loyaltyPoints - pointsToRedeem }, { transaction });
+        }
+    }
+
+    // Process Promotion Code
+    if (promotionCode) {
+        const promotion = await db.Promotion.findOne({
+            where: {
+                code: promotionCode,
+                restaurantId: cart.restaurantId,
+                isActive: true,
+                validFrom: { [Op.lte]: new Date() },
+                validUntil: { [Op.gte]: new Date() }
+            },
+            transaction
+        });
+
+        if (promotion && (!promotion.usageLimit || promotion.usageCount < promotion.usageLimit)) {
+            let promoDiscount = 0;
+            const sub = Number(currentOrder.subtotal || 0);
+            
+            if (!promotion.minOrderAmount || sub >= Number(promotion.minOrderAmount)) {
+                if (promotion.discountType === 'percentage') {
+                    promoDiscount = (sub * Number(promotion.discountValue)) / 100;
+                    if (promotion.maxDiscountAmount && promoDiscount > Number(promotion.maxDiscountAmount)) {
+                        promoDiscount = Number(promotion.maxDiscountAmount);
+                    }
+                } else {
+                    promoDiscount = Number(promotion.discountValue);
+                }
+                
+                currentDiscountAmount += promoDiscount;
+                
+                // Increment promo usage
+                await promotion.update({ usageCount: promotion.usageCount + 1 }, { transaction });
+                
+                // Create PromotionUsage
+                await db.PromotionUsage.create({
+                    customerId: currentOrder.customerId,
+                    promotionId: promotion.id,
+                    orderId: currentOrder.id,
+                    discountAmount: promoDiscount
+                }, { transaction });
+            }
+        }
+    }
+
+    // Update order discount and final total if any discount
+    if (currentDiscountAmount > 0) {
+        let finalTotal = Number(currentOrder.subtotal || 0) + Number(currentOrder.taxAmount || 0) + Number(currentOrder.serviceCharge || 0) - currentDiscountAmount;
+        if (finalTotal < 0) finalTotal = 0;
+        await currentOrder.update({
+            discountAmount: currentDiscountAmount,
+            totalAmount: finalTotal
+        }, { transaction });
     }
   });
 

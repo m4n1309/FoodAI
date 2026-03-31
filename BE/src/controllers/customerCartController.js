@@ -93,7 +93,10 @@ const placeOrder = async (req, res) => {
       sessionId: req.customerSessionId,
       orderId: req.body.orderId,
       customerName: req.body.customerName,
-      customerNote: req.body.customerNote
+      customerNote: req.body.customerNote,
+      promotionCode: req.body.promotionCode,
+      pointsToRedeem: req.body.pointsToRedeem,
+      customerId: req.body.customerId
     });
 
     // Notify staff via Socket.IO
@@ -104,6 +107,13 @@ const placeOrder = async (req, res) => {
         orderNumber: data.order.orderNumber,
         tableId: data.order.tableId,
         restaurantId: data.order.restaurantId,
+        itemCount: (data.order.items || []).length
+      });
+      
+      io.to(`kitchen:${data.order.restaurantId}`).emit('new_order', {
+        orderId: data.order.id,
+        orderNumber: data.order.orderNumber,
+        tableId: data.order.tableId,
         itemCount: (data.order.items || []).length
       });
     }

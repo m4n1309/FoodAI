@@ -52,6 +52,14 @@ const updateItemStatus = async (req, res) => {
         status: updatedItem.itemStatus
       });
 
+      if (updatedItem.itemStatus === 'ready') {
+         io.to(`waiter:${req.staff.restaurantId}`).emit('item_ready', {
+            itemId: updatedItem.id,
+            orderId: updatedItem.orderId,
+            itemName: updatedItem.itemName
+         });
+      }
+
       // 2. Notify specific order room (for Customer Tracking UI)
       io.to(`order:${updatedItem.orderId}`).emit('item_status_changed', {
         itemId: updatedItem.id,

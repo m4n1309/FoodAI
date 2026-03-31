@@ -10,6 +10,7 @@ import MenuItemsPage from './pages/admin/MenuItemsPage.jsx';
 import TablesPage from './pages/admin/TablesPage.jsx';
 import OrdersPage from './pages/admin/OrdersPage.jsx';
 import KitchenPage from './pages/admin/KitchenPage.jsx';
+import PromotionsPage from './pages/admin/PromotionsPage.jsx';
 import CustomerMenuPage from './pages/customer/CustomerMenuPage';
 import { toastOptions } from './config/toastConfig.js';
 
@@ -50,6 +51,14 @@ function GlobalSocketListener() {
       toast('Đơn hàng mới: #' + data.orderNumber, { icon: '🔔' });
     };
 
+    const handleNewOrder = (data) => {
+      toast('Bếp nhận đơn mới: #' + data.orderNumber, { icon: '🔥' });
+    };
+
+    const handleItemReady = (data) => {
+      toast.success(`Món ${data.itemName} ĐÃ XONG! Mời phục vụ!`, { icon: '🏃' });
+    };
+
     const handleItemStatusChanged = (data) => {
       if (data.status === 'ready') {
         toast.success(`Món ${data.itemName} đã sẵn sàng!`);
@@ -57,10 +66,14 @@ function GlobalSocketListener() {
     };
 
     socket.on('order_placed', handleOrderPlaced);
+    socket.on('new_order', handleNewOrder);
+    socket.on('item_ready', handleItemReady);
     socket.on('item_status_changed', handleItemStatusChanged);
 
     return () => {
       socket.off('order_placed', handleOrderPlaced);
+      socket.off('new_order', handleNewOrder);
+      socket.off('item_ready', handleItemReady);
       socket.off('item_status_changed', handleItemStatusChanged);
     };
   }, [socket]);
@@ -133,6 +146,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'manager', 'kitchen']}>
                 <KitchenPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/promotions"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                <PromotionsPage />
               </ProtectedRoute>
             }
           />

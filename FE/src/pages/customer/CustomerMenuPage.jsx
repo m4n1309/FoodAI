@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import MenuItemDetailModal from '../../components/customer/MenuItemDetailModal';
 import PlaceOrderModal from '../../components/customer/PlaceOrderModal';
+import ReviewModal from '../../components/customer/ReviewModal';
 import { useLocation, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { default as io } from 'socket.io-client';
@@ -35,6 +36,9 @@ const CustomerMenuPage = () => {
   // Place order modal + placed order result
   const [placeOrderModalOpen, setPlaceOrderModalOpen] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
+  
+  // Review modal
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
   const restaurantId = bootstrap?.table?.restaurantId;
   const tableId = bootstrap?.table?.id;
@@ -169,7 +173,14 @@ const CustomerMenuPage = () => {
     });
 
     socket.on('order_status_changed', (data) => {
-      setPlacedOrder(prev => prev ? { ...prev, orderStatus: data.status } : null);
+      setPlacedOrder((prev) => {
+        if (!prev) return null;
+        if (data.status === 'completed' && prev.orderStatus !== 'completed') {
+          // Tuỳ chọn: dùng setTimeout() để delay hiển thị popup đánh giá, hoặc mở liền
+          setReviewModalOpen(true);
+        }
+        return { ...prev, orderStatus: data.status };
+      });
     });
 
     socket.on('item_status_changed', (data) => {
@@ -235,6 +246,16 @@ const CustomerMenuPage = () => {
                 </div>
               ))}
             </div>
+            {placedOrder.orderStatus === 'completed' && (
+              <div className="mt-4 pt-3 border-t border-green-200">
+                <button
+                  className="w-full cursor-pointer rounded-lg border border-yellow-500 bg-yellow-400 py-2.5 text-sm font-semibold text-yellow-900 shadow hover:bg-yellow-500 transition-colors"
+                  onClick={() => setReviewModalOpen(true)}
+                >
+                  ⭐ Đánh giá trải nghiệm của bạn
+                </button>
+              </div>
+            )}
           </div>
           <div className="mt-2 text-xs text-green-600">Màn hình sẽ tự động cập nhật tình trạng món theo thời gian thực nhờ kết nối trực tiếp đến bếp.</div>
         </div>
@@ -394,6 +415,13 @@ const CustomerMenuPage = () => {
         onClose={() => setPlaceOrderModalOpen(false)}
         cart={cart}
         onSuccess={handlePlaceOrderSuccess}
+      />
+
+      {/* ✅ Review modal */}
+      <ReviewModal
+        open={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        order={placedOrder}
       />
     </div>
   );

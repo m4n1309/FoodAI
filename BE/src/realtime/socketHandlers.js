@@ -53,5 +53,35 @@ export const initSocketHandlers = (io) => {
       if (!restaurantId) return;
       socket.leave(`restaurant:${restaurantId}`);
     });
+
+    // Role-specific rooms (staff roles)
+    socket.on('join_role_room', ({ restaurantId, role }) => {
+      // role can be 'kitchen', 'waiter', etc.
+      if (!restaurantId || !role) {
+        socket.emit('join_role_error', { message: 'restaurantId and role are required' });
+        return;
+      }
+      const room = `${role}:${restaurantId}`;
+      socket.join(room);
+      socket.emit('join_role_success', { restaurantId, role, room });
+    });
+
+    socket.on('leave_role_room', ({ restaurantId, role }) => {
+      if (!restaurantId || !role) return;
+      socket.leave(`${role}:${restaurantId}`);
+    });
+
+    // Table specific rooms for customers to receive generic updates for their table
+    socket.on('join_table', ({ tableId }) => {
+      if (!tableId) return;
+      const room = `table:${tableId}`;
+      socket.join(room);
+      socket.emit('join_table_success', { tableId, room });
+    });
+
+    socket.on('leave_table', ({ tableId }) => {
+       if (!tableId) return;
+       socket.leave(`table:${tableId}`);
+    });
   });
 };

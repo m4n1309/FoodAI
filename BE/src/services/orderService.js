@@ -109,6 +109,21 @@ const updateOrderStatus = async ({ id, restaurantId, status, cancelledReason, st
 
   if (status === 'completed') {
     updateData.completedAt = new Date();
+    
+    // Update Customer loyalty points if order has a customer
+    if (order.customerId && order.orderStatus !== 'completed') {
+        const customer = await db.Customer.findByPk(order.customerId);
+        if (customer) {
+            // Calculate points: 1 point per 10,000 VND spent
+            const pointsEarned = Math.floor(Number(order.totalAmount || 0) / 10000);
+            
+            await customer.update({
+                loyaltyPoints: (customer.loyaltyPoints || 0) + pointsEarned,
+                totalOrders: (customer.totalOrders || 0) + 1,
+                totalSpent: Number(customer.totalSpent || 0) + Number(order.totalAmount || 0)
+            });
+        }
+    }
   } else if (status === 'cancelled') {
     updateData.cancelledReason = cancelledReason || 'Cancelled by staff';
   }

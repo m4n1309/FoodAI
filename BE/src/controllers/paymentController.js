@@ -45,6 +45,24 @@ const createPayment = async (req, res) => {
         amount: payment.amount,
         paymentMethod: payment.paymentMethod
       });
+      // notify also table room if order has tableId. We need to fetch order to get tableId first.
+      // For simplicity, let's just emit to order room and restaurant room, as they probably want payment confirmed by order.
+      // Wait, the requirement says "emit 'payment_confirmed' cho room 'table:3'".
+      try {
+        const db = (await import('../models/index.js')).default;
+        const order = await db.Order.findByPk(orderId);
+        if (order && order.tableId) {
+          io.to(`table:${order.tableId}`).emit('payment_confirmed', {
+            paymentId: payment.id,
+            amount: payment.amount,
+            paymentMethod: payment.paymentMethod,
+            orderId: order.id
+          });
+        }
+      } catch (err) {
+        console.error('Error emitting to table room on payment:', err);
+      }
+      
       // also notify restaurant room
       io.to(`restaurant:${req.staff.restaurantId}`).emit('order_payment_updated', {
         orderId: orderId,

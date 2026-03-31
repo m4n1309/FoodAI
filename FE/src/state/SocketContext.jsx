@@ -9,24 +9,28 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    if (user?.restaurantId) {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const newSocket = io(apiUrl, {
-        withCredentials: true,
-      });
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const newSocket = io(apiUrl, {
+      withCredentials: true,
+    });
 
-      newSocket.on('connect', () => {
-        console.log('Socket connected:', newSocket.id);
-        newSocket.emit('join_restaurant', user.restaurantId);
-      });
+    newSocket.on('connect', () => {
+      console.log('Socket connected:', newSocket.id);
+      if (user?.restaurantId) {
+        newSocket.emit('join_restaurant', { restaurantId: user.restaurantId });
+        newSocket.emit('join_role_room', { restaurantId: user.restaurantId, role: user.role });
+      }
+    });
 
-      setSocket(newSocket);
+    setSocket(newSocket);
 
-      return () => {
-        newSocket.emit('leave_restaurant', user.restaurantId);
-        newSocket.disconnect();
-      };
-    }
+    return () => {
+      if (user?.restaurantId) {
+        newSocket.emit('leave_restaurant', { restaurantId: user.restaurantId });
+        newSocket.emit('leave_role_room', { restaurantId: user.restaurantId, role: user.role });
+      }
+      newSocket.disconnect();
+    };
   }, [user]);
 
   return (

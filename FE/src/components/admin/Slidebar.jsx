@@ -9,6 +9,7 @@ import {
   ChartBarIcon,
   CogIcon,
   ArrowRightOnRectangleIcon,
+  TicketIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth.js';
 
@@ -56,6 +57,12 @@ const Sidebar = ({ isOpen, onClose }) => {
       name: 'Báo cáo',
       href: '/admin/reports',
       icon: ChartBarIcon,
+      roles: ['admin', 'manager'],
+    },
+    {
+      name: 'Khuyến mãi',
+      href: '/admin/promotions',
+      icon: TicketIcon,
       roles: ['admin', 'manager'],
     },
     {
