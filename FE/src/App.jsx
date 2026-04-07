@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './state/AuthContext';
 import { SocketProvider } from './state/SocketContext.jsx';
@@ -11,6 +12,8 @@ import TablesPage from './pages/admin/TablesPage.jsx';
 import OrdersPage from './pages/admin/OrdersPage.jsx';
 import KitchenPage from './pages/admin/KitchenPage.jsx';
 import PromotionsPage from './pages/admin/PromotionsPage.jsx';
+import RevenueReportPage from './pages/admin/RevenueReportPage.jsx';
+import PopularItemsReportPage from './pages/admin/PopularItemsReportPage.jsx';
 import CustomerMenuPage from './pages/customer/CustomerMenuPage';
 import { toastOptions } from './config/toastConfig.js';
 
@@ -81,96 +84,118 @@ function GlobalSocketListener() {
   return null;
 }
 
+const queryClient = new QueryClient();
+
 function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <BrowserRouter>
-          <GlobalSocketListener />
-        <Routes>
-          <Route path="/admin/login" element={<LoginPage />} />
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <SocketProvider>
+          <BrowserRouter>
+            <GlobalSocketListener />
+          <Routes>
+            <Route path="/admin/login" element={<LoginPage />} />
 
-          <Route path="/customer/menu/:qrCode" element={<CustomerMenuPage />} />
-          <Route path="/customer/menu" element={<CustomerMenuPage />} />
-          <Route path="/menu/:qrCode" element={<CustomerMenuPage />} />
-          <Route path="/customer/:qrCode" element={<CustomerMenuPage />} />
-          <Route path="/scan" element={<ScanRedirectPage />} />
+            <Route path="/customer/menu/:qrCode" element={<CustomerMenuPage />} />
+            <Route path="/customer/menu" element={<CustomerMenuPage />} />
+            <Route path="/menu/:qrCode" element={<CustomerMenuPage />} />
+            <Route path="/customer/:qrCode" element={<CustomerMenuPage />} />
+            <Route path="/scan" element={<ScanRedirectPage />} />
 
-          <Route
-            path="/admin/dashboard"
+            <Route
+              path="/admin/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/categories"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <CategoriesPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/menu-items"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <MenuItemsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/tables"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <TablesPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/orders"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager', 'waiter']}>
+                  <OrdersPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/kitchen"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager', 'kitchen']}>
+                  <KitchenPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/promotions"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <PromotionsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/reports"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <RevenueReportPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+            path="/admin/reports/popular"
             element={
               <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/categories"
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                <CategoriesPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/menu-items"
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                <MenuItemsPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/tables"
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                <TablesPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/orders"
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'manager', 'waiter']}>
-                <OrdersPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/kitchen"
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'manager', 'kitchen']}>
-                <KitchenPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/promotions"
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                <PromotionsPage />
+                <PopularItemsReportPage />
               </ProtectedRoute>
             }
           />
 
           <Route path="/admin" element={<AdminIndexRedirect />} />
-          <Route path="/" element={<Navigate to="/admin/login" replace />} />
-          <Route path="*" element={<Navigate to="/admin/login" replace />} />
-        </Routes>
+            <Route path="/" element={<Navigate to="/admin/login" replace />} />
+            <Route path="*" element={<Navigate to="/admin/login" replace />} />
+          </Routes>
 
-        <Toaster
-          position="top-right"
-          toastOptions={toastOptions}
-        />
-      </BrowserRouter>
-      </SocketProvider>
-    </AuthProvider>
+          <Toaster
+            position="top-right"
+            toastOptions={toastOptions}
+          />
+        </BrowserRouter>
+        </SocketProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

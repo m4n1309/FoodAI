@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import {
   HomeIcon,
   RectangleStackIcon,
@@ -57,6 +58,12 @@ const Sidebar = ({ isOpen, onClose }) => {
       name: 'Báo cáo',
       href: '/admin/reports',
       icon: ChartBarIcon,
+      roles: ['admin', 'manager'],
+    },
+    {
+      name: 'Món ăn bán chạy',
+      href: '/admin/reports/popular',
+      icon: FireIcon,
       roles: ['admin', 'manager'],
     },
     {

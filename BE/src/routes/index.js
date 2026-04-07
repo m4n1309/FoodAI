@@ -9,6 +9,7 @@ import kitchenRoute from './kitchenRoute.js'; // ✅ NEW
 import paymentRoute from './paymentRoute.js';
 import promotionRoute from './promotionRoute.js';
 import reviewRoute from './reviewRoute.js';
+import reportRoute from './reportRoute.js';
 
 const router = express.Router();
 
@@ -22,5 +23,6 @@ router.use('/kitchen', kitchenRoute); // ✅ NEW
 router.use('/payments', paymentRoute);
 router.use('/promotions', promotionRoute);
 router.use('/reviews', reviewRoute);
+router.use('/reports', reportRoute);
 
 export default router;
