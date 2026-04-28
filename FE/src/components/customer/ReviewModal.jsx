@@ -1,23 +1,29 @@
 import { useState } from 'react';
 import customerApi from '../../services/customerService.js';
 import toast from 'react-hot-toast';
+import PropTypes from 'prop-types';
 
-const ReviewModal = ({ open, onClose, order }) => {
+const ReviewModal = ({ isOpen, onClose, restaurantId, order }) => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  if (!open || !order) return null;
+  if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!restaurantId && !order?.restaurantId) {
+      toast.error('Thiếu thông tin nhà hàng');
+      return;
+    }
+    
     setSubmitting(true);
     try {
       await customerApi.submitReview({
-        restaurantId: order.restaurantId,
-        orderId: order.id,
-        customerName: order.customerName,
+        restaurantId: order?.restaurantId || restaurantId,
+        orderId: order?.id,
+        customerName: order?.customerName || 'Khách hàng',
         customerPhone: phone.trim() || undefined,
         rating,
         comment
@@ -41,8 +47,14 @@ const ReviewModal = ({ open, onClose, order }) => {
         >
           ×
         </button>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Đánh giá bữa ăn</h2>
-        <p className="text-sm text-gray-500 mb-4">Mã đơn: <span className="font-semibold text-gray-700">{order.orderNumber}</span></p>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Đánh giá trải nghiệm</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          {order?.orderNumber ? (
+            <>Mã đơn: <span className="font-semibold text-gray-700">{order.orderNumber}</span></>
+          ) : (
+            <>Chia sẻ cảm nhận của bạn về chúng tôi</>
+          )}
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex flex-col items-center">
@@ -63,13 +75,13 @@ const ReviewModal = ({ open, onClose, order }) => {
           </div>
 
           <div className="pt-2">
-            <label className="block text-sm font-medium text-primary-700 mb-1 flex items-center gap-1">
+            <label className="block text-sm font-medium text-indigo-700 mb-1 flex items-center gap-1">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v1m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               Số điện thoại tích điểm (+100 điểm)
             </label>
             <input
               type="tel"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 bg-primary-50 placeholder-primary-300"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-indigo-50 placeholder-indigo-300"
               placeholder="09xx..."
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -85,7 +97,7 @@ const ReviewModal = ({ open, onClose, order }) => {
             </label>
             <textarea
               rows={2}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
               placeholder="Chia sẻ trải nghiệm của bạn..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
@@ -96,7 +108,7 @@ const ReviewModal = ({ open, onClose, order }) => {
 
           <button
             type="submit"
-            className="w-full rounded-xl border border-transparent bg-primary-600 px-4 py-3 text-sm font-bold text-white shadow hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-xl border border-transparent bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={submitting}
           >
             {submitting ? 'Đang gửi...' : 'Gửi đánh giá & Nhận điểm'}
@@ -105,6 +117,18 @@ const ReviewModal = ({ open, onClose, order }) => {
       </div>
     </div>
   );
+};
+
+ReviewModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  restaurantId: PropTypes.string,
+  order: PropTypes.shape({
+    id: PropTypes.string,
+    restaurantId: PropTypes.string,
+    customerName: PropTypes.string,
+    orderNumber: PropTypes.string
+  })
 };
 
 export default ReviewModal;

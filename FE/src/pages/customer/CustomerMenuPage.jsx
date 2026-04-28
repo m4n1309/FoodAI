@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import MenuItemDetailModal from '../../components/customer/MenuItemDetailModal';
+import ComboDetailModal from '../../components/customer/ComboDetailModal';
 import PlaceOrderModal from '../../components/customer/PlaceOrderModal';
 import ReviewModal from '../../components/customer/ReviewModal';
+import ImageWithFallback from '../../components/common/ImageWithFallback';
 import { useLocation, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { default as io } from 'socket.io-client';
 import customerApi from '../../services/customerService.js';
+import { PlusIcon } from '@heroicons/react/24/outline';
 
 const formatMoney = (v) => {
   const n = Number(v || 0);
@@ -21,39 +24,62 @@ const CustomerMenuPage = () => {
     return queryQr || '';
   }, [qrCode, location.search]);
 
-
   const [loading, setLoading] = useState(true);
   const [bootstrap, setBootstrap] = useState(null);
   const [cart, setCart] = useState(null);
-
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('all');
 
-  // Menu item detail modal
+  // Modals state
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-
-  // Place order modal + placed order result
+  const [selectedCombo, setSelectedCombo] = useState(null);
+  const [comboModalOpen, setComboModalOpen] = useState(false);
   const [placeOrderModalOpen, setPlaceOrderModalOpen] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
-  
-  // Review modal
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
-  const restaurantId = bootstrap?.table?.restaurantId;
-  const tableId = bootstrap?.table?.id;
+  const restaurant = bootstrap?.restaurant;
+  const table = bootstrap?.table;
+  const restaurantId = table?.restaurantId;
 
   const categories = useMemo(() => bootstrap?.categories || [], [bootstrap]);
   const menuItems = useMemo(() => bootstrap?.menuItems || [], [bootstrap]);
+  const combos = useMemo(() => bootstrap?.combos || [], [bootstrap]);
 
-  const filteredMenuItems = useMemo(() => {
+  const categoriesToRender = useMemo(() => {
+    const list = [...categories];
+    if (combos.length > 0) {
+      list.unshift({ id: 'combos', name: 'Combo Ưu đãi', slug: 'combos' });
+    }
+    return list;
+  }, [categories, combos]);
+
+  const combinedItems = useMemo(() => {
+    let result = [];
     const q = search.trim().toLowerCase();
-    return menuItems.filter((it) => {
-      const matchSearch = !q || it.name?.toLowerCase().includes(q) || it.description?.toLowerCase().includes(q);
-      const matchCategory = categoryId === 'all' || String(it.categoryId) === String(categoryId);
-      return matchSearch && matchCategory;
-    });
-  }, [menuItems, search, categoryId]);
+
+    // Add combos
+    if (categoryId === 'all' || categoryId === 'combos') {
+      const filteredCombos = combos.filter((c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.description && c.description.toLowerCase().includes(q))
+      );
+      result = [...result, ...filteredCombos.map((c) => ({ ...c, isCombo: true }))];
+    }
+
+    // Add menu items
+    if (categoryId !== 'combos') {
+      const filteredItems = menuItems.filter((it) => {
+        const matchSearch = !q || it.name?.toLowerCase().includes(q) || it.description?.toLowerCase().includes(q);
+        const matchCategory = categoryId === 'all' || String(it.categoryId) === String(categoryId);
+        return matchSearch && matchCategory;
+      });
+      result = [...result, ...filteredItems.map((m) => ({ ...m, isCombo: false }))];
+    }
+
+    return result;
+  }, [categoryId, combos, menuItems, search]);
 
   const cartTotals = useMemo(() => {
     return {
@@ -64,10 +90,9 @@ const CustomerMenuPage = () => {
     };
   }, [cart]);
 
-  const loadAll = async () => {
+  const loadAll = useCallback(async () => {
     try {
       setLoading(true);
-
       if (!effectiveQrCode) {
         toast.error('Thiếu mã QR. Vui lòng quét lại mã.');
         setBootstrap(null);
@@ -76,18 +101,13 @@ const CustomerMenuPage = () => {
       }
 
       const bootRes = await customerApi.bootstrap(effectiveQrCode);
-      // axiosClient returns {success,message,data}; your FE axios wrappers currently use response.data
-      // Here assume axiosClient returns response.data directly? In your admin FE, you do response.data.tables.
-      // So: bootRes.data is the "data" field from backend.
       const bootData = bootRes.data;
-
       setBootstrap(bootData);
 
       const cartRes = await customerApi.createOrGetCart({
         restaurantId: bootData.table.restaurantId,
         tableId: bootData.table.id
       });
-
       setCart(cartRes.data.cart);
     } catch (e) {
       const msg = e.response?.data?.message || e.message || 'Failed to load menu';
@@ -97,12 +117,11 @@ const CustomerMenuPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [effectiveQrCode]);
 
   useEffect(() => {
     loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveQrCode]);
+  }, [loadAll]);
 
   const handleAddMenuItem = async (menuItemId) => {
     if (!cart) return;
@@ -117,15 +136,28 @@ const CustomerMenuPage = () => {
       toast.success('Đã thêm vào giỏ');
     } catch (e) {
       const status = e.response?.status;
-      const msg = e.response?.data?.message || 'Add to cart failed';
-
       if (status === 410) {
-        toast.error('Giỏ hàng đã hết hạn (2 giờ không hoạt động). Đang tạo giỏ mới...');
+        toast.error('Giỏ hàng hết hạn. Đang làm mới...');
         await loadAll();
         return;
       }
+      toast.error(e.response?.data?.message || 'Lỗi thêm món');
+    }
+  };
 
-      toast.error(msg);
+  const handleAddCombo = async (comboId) => {
+    if (!cart) return;
+    try {
+      const res = await customerApi.addCartItem({
+        orderId: cart.id,
+        itemType: 'combo',
+        comboId,
+        quantity: 1
+      });
+      setCart(res.data.cart);
+      toast.success('Đã thêm combo vào giỏ');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Lỗi thêm combo');
     }
   };
 
@@ -135,13 +167,7 @@ const CustomerMenuPage = () => {
       const res = await customerApi.updateCartItem(orderItemId, { quantity: newQty });
       setCart(res.data.cart);
     } catch (e) {
-      const status = e.response?.status;
-      if (status === 410) {
-        toast.error('Giỏ hàng đã hết hạn. Đang tạo giỏ mới...');
-        await loadAll();
-        return;
-      }
-      toast.error(e.response?.data?.message || 'Update failed');
+      toast.error('Cập nhật thất bại');
     }
   };
 
@@ -151,20 +177,18 @@ const CustomerMenuPage = () => {
       const res = await customerApi.removeCartItem(orderItemId);
       setCart(res.data.cart);
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Remove failed');
+      toast.error('Xóa món thất bại');
     }
   };
 
   const handlePlaceOrderSuccess = (order) => {
     setPlacedOrder(order);
-    // The cart is now 'pending' — clear local cart state so user can't keep editing
     setCart(null);
   };
 
-  // ✅ Socket.IO Real-time tracking
+  // Socket.IO Logic
   useEffect(() => {
     if (!placedOrder?.id || !placedOrder?.sessionId) return;
-    
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     const socket = io(apiUrl, { withCredentials: true });
 
@@ -173,29 +197,16 @@ const CustomerMenuPage = () => {
     });
 
     socket.on('order_status_changed', (data) => {
-      setPlacedOrder((prev) => {
+      setPlacedOrder(prev => {
         if (!prev) return null;
-        if (data.status === 'completed' && prev.orderStatus !== 'completed') {
-          // Tuỳ chọn: dùng setTimeout() để delay hiển thị popup đánh giá, hoặc mở liền
-          setReviewModalOpen(true);
-        }
+        if (data.status === 'completed') setReviewModalOpen(true);
         return { ...prev, orderStatus: data.status };
       });
     });
 
-    socket.on('item_status_changed', (data) => {
-      setPlacedOrder(prev => {
-        if (!prev) return null;
-        const newItems = prev.items?.map(it => 
-          it.id === data.itemId ? { ...it, itemStatus: data.status } : it
-        );
-        return { ...prev, items: newItems };
-      });
-    });
-
-    socket.on('payment_confirmed', (data) => {
+    socket.on('payment_confirmed', () => {
       setPlacedOrder(prev => prev ? { ...prev, paymentStatus: 'paid' } : null);
-      toast.success('Đơn hàng của bạn đã thanh toán thành công. Cảm ơn quý khách!');
+      toast.success('Thanh toán thành công!');
     });
 
     return () => {
@@ -204,224 +215,175 @@ const CustomerMenuPage = () => {
     };
   }, [placedOrder?.id, placedOrder?.sessionId]);
 
-  if (loading) return <div className="mx-auto max-w-5xl p-4">Loading...</div>;
-  if (!bootstrap) return <div className="mx-auto max-w-5xl p-4">Không load được dữ liệu từ QR.</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  if (!bootstrap) return <div className="flex h-screen items-center justify-center p-6 text-center">Không tải được dữ liệu QR.</div>;
 
   return (
-    <div className="mx-auto max-w-5xl p-4">
-      {/* ✅ Order placed success banner & tracking */}
+    <div className="mx-auto max-w-6xl p-4 sm:p-6 bg-gray-50 min-h-screen">
+      {/* Tracking Banner */}
       {placedOrder && (
-        <div className="mb-4 rounded-xl border border-green-300 bg-green-50 px-4 py-3">
-          <div className="font-semibold text-green-800">🎉 Đơn hàng đã được gửi thành công!</div>
-          <div className="mt-1 flex justify-between items-center text-sm text-green-700">
-            <div>Mã đơn: <b>{placedOrder.orderNumber}</b></div>
-            <div className="font-semibold text-xs whitespace-nowrap bg-yellow-200 px-2 py-1 rounded text-yellow-800">
-              {placedOrder.orderStatus === 'pending' ? 'Chờ xác nhận' :
-               placedOrder.orderStatus === 'confirmed' ? 'Đã xác nhận' :
-               placedOrder.orderStatus === 'preparing' ? 'Đang nấu' :
-               placedOrder.orderStatus === 'ready' ? 'Lên món' :
-               placedOrder.orderStatus === 'serving' ? 'Đang phục vụ' :
-               placedOrder.orderStatus === 'completed' ? 'Hoàn thành' : placedOrder.orderStatus}
-            </div>
-            {placedOrder.paymentStatus === 'paid' && (
-              <div className="font-semibold text-xs whitespace-nowrap bg-green-200 px-2 py-1 rounded text-green-800 ml-2">
-                Đã thanh toán
-              </div>
-            )}
+        <div className="mb-6 rounded-3xl border border-green-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="h-2 w-2 animate-ping rounded-full bg-green-500"></div>
+            <h3 className="font-bold text-gray-900">Đơn hàng đang theo dõi: #{placedOrder.orderNumber}</h3>
           </div>
-          <div className="mt-2 pt-2 border-t border-green-200 text-sm">
-            <p className="font-semibold mb-1 text-green-800">Tình trạng các món:</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {(placedOrder.items || []).map(item => (
-                <div key={item.id} className="flex justify-between items-center bg-white/50 p-2 rounded">
-                  <span className="font-medium text-green-900">{item.quantity}x {item.itemName}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    item.itemStatus === 'ready' || item.itemStatus === 'served' ? 'bg-green-200 text-green-900' :
-                    item.itemStatus === 'preparing' ? 'bg-blue-200 text-blue-900' : 'bg-gray-200 text-gray-800'
-                  }`}>
-                    {item.itemStatus === 'ready' ? 'Đã xong' :
-                     item.itemStatus === 'preparing' ? 'Đang nấu' :
-                     item.itemStatus === 'served' ? 'Đã lên' : 'Chờ bếp'}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {placedOrder.orderStatus === 'completed' && (
-              <div className="mt-4 pt-3 border-t border-green-200">
-                <button
-                  className="w-full cursor-pointer rounded-lg border border-yellow-500 bg-yellow-400 py-2.5 text-sm font-semibold text-yellow-900 shadow hover:bg-yellow-500 transition-colors"
-                  onClick={() => setReviewModalOpen(true)}
-                >
-                  ⭐ Đánh giá trải nghiệm của bạn
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="mt-2 text-xs text-green-600">Màn hình sẽ tự động cập nhật tình trạng món theo thời gian thực nhờ kết nối trực tiếp đến bếp.</div>
+          <div className="mt-2 text-sm text-gray-500">Trạng thái: <span className="font-bold text-indigo-600 uppercase italic">{placedOrder.orderStatus}</span></div>
         </div>
       )}
 
-      <div className="mb-3 flex items-start justify-between gap-3 border-b border-gray-200 pb-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">{bootstrap.restaurant?.name || 'Restaurant'}</h1>
-          <div className="mt-1.5 text-sm leading-relaxed text-gray-600">
-            <span className="inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700">Bàn {bootstrap.table?.tableNumber}</span>{' '}
-            {cart?.orderNumber ? <span>• Cart: <b>{cart.orderNumber}</b></span> : null}
-            <div className="mt-1.5">
-              {bootstrap.restaurant?.address ? <div>Địa chỉ: {bootstrap.restaurant.address}</div> : null}
-              {bootstrap.restaurant?.phone ? <div>Hotline: {bootstrap.restaurant.phone}</div> : null}
-            </div>
+      {/* Header */}
+      <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-16 overflow-hidden rounded-2xl shadow-md">
+             <ImageWithFallback src={restaurant?.logoUrl} alt={restaurant?.name} className="h-full w-full object-cover" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-gray-900">{restaurant?.name}</h1>
+            <p className="text-sm font-medium text-gray-500">Bàn số <span className="text-indigo-600 font-bold">{table?.tableNumber}</span></p>
           </div>
         </div>
-
-        <button className="cursor-pointer rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200" onClick={loadAll}>Reload</button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setReviewModalOpen(true)} 
+            className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-2.5 text-sm font-bold text-yellow-900 shadow-sm transition-all hover:bg-yellow-500 active:scale-95"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+            Đánh giá
+          </button>
+          <button onClick={loadAll} className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition-all hover:bg-gray-50 active:scale-95">Lấy lại thực đơn</button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
-        {/* MENU */}
-        <div className="rounded-xl border border-gray-200 bg-white p-3 lg:col-span-2">
-          <div className="mb-3 flex gap-2.5">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        {/* Menu Section */}
+        <div className="lg:col-span-2">
+          {/* Filters */}
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row">
             <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none ring-blue-500 focus:ring-2"
+              className="flex-1 rounded-2xl border-none bg-white px-5 py-3.5 text-sm shadow-sm outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-indigo-500"
+              placeholder="Bạn muốn ăn món gì hôm nay?"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm món..."
+              onChange={e => setSearch(e.target.value)}
             />
             <select
-              className="w-full max-w-[220px] rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none ring-blue-500 focus:ring-2"
+              className="rounded-2xl border-none bg-white px-5 py-3.5 text-sm font-bold shadow-sm outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-indigo-500"
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
+              onChange={e => setCategoryId(e.target.value)}
             >
               <option value="all">Tất cả danh mục</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
+              {categoriesToRender.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
 
-          <div className="grid grid-cols-1 gap-3">
-            {filteredMenuItems.map((it) => (
+          {/* Grid */}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            {combinedItems.map((it) => (
               <div
-                key={it.id}
-                className="rounded-xl border border-gray-200 bg-white p-3 cursor-pointer hover:bg-gray-50"
+                key={it.isCombo ? `combo-${it.id}` : `item-${it.id}`}
+                className="group relative flex flex-col overflow-hidden rounded-[2rem] border border-transparent bg-white shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
                 onClick={() => {
-                  setSelectedMenuItem(it);
-                  setModalOpen(true);
+                  if (it.isCombo) {
+                    setSelectedCombo(it);
+                    setComboModalOpen(true);
+                  } else {
+                    setSelectedMenuItem(it);
+                    setModalOpen(true);
+                  }
                 }}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="font-bold text-gray-900">{it.name}</div>
-                    {it.description ? <div className="mt-1 text-sm text-gray-600">{it.description}</div> : null}
-                    <div className="mt-2 text-sm text-gray-700">
-                      Giá: <b>{formatMoney(it.discountPrice ?? it.price)}</b>
-                      {it.discountPrice ? <span className="text-gray-500"> (gốc {formatMoney(it.price)})</span> : null}
+                <div className="h-44 w-full overflow-hidden">
+                  <ImageWithFallback src={it.imageUrl} alt={it.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  {it.isCombo && (
+                    <div className="absolute top-4 left-4 rounded-full bg-gradient-to-r from-orange-500 to-red-600 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-lg">Combo Đặc biệt</div>
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col p-5">
+                  <h3 className="text-lg font-black text-gray-900 line-clamp-1">{it.name}</h3>
+                  <p className="mt-1 text-xs text-gray-400 line-clamp-2 min-h-[32px]">{it.description || 'Tuyệt tác ẩm thực hoàn hảo cho bạn.'}</p>
+                  
+                  <div className="mt-5 flex items-end justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-xl font-black text-indigo-600">{formatMoney(it.discountPrice ?? it.price)}</span>
+                      {it.discountPrice && <span className="text-[10px] text-gray-400 line-through">{formatMoney(it.price)}</span>}
                     </div>
+                    <button
+                      className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-100 transition-all hover:bg-black hover:shadow-xl"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        it.isCombo ? handleAddCombo(it.id) : handleAddMenuItem(it.id);
+                      }}
+                    >
+                      <PlusIcon className="h-6 w-6" />
+                    </button>
                   </div>
-                  <button
-                    className="cursor-pointer rounded-lg border border-blue-700 bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAddMenuItem(it.id);
-                    }}
-                  >
-                    Thêm
-                  </button>
                 </div>
               </div>
             ))}
-            {filteredMenuItems.length === 0 ? <div>Không có món phù hợp.</div> : null}
           </div>
         </div>
 
-        {/* CART */}
-        <div className="rounded-xl border border-gray-200 bg-white p-3 lg:col-span-1">
-          <div className="mb-2.5 text-base font-extrabold text-gray-900">Giỏ hàng</div>
+        {/* Cart Section */}
+        <div className="lg:sticky lg:top-8">
+           <div className="rounded-[2.5rem] border border-gray-100 bg-white p-6 shadow-xl">
+              <h2 className="text-xl font-black text-gray-900 border-b border-gray-50 pb-4 mb-4">Giỏ hàng</h2>
+              
+              {(!cart || (cart.items || []).length === 0) ? (
+                <div className="py-12 text-center text-gray-300 italic text-sm">Chưa có món nào. <br/>Hãy chọn món bạn thích!</div>
+              ) : (
+                <>
+                  <div className="space-y-5 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                    {cart.items.map(ci => (
+                      <div key={ci.id} className="group relative flex flex-col gap-2">
+                        <div className="flex justify-between items-start">
+                           <div className="flex-1">
+                              <div className="text-sm font-bold text-gray-800 leading-tight">{ci.itemName}</div>
+                              <div className="text-[10px] text-gray-400 font-medium">{formatMoney(ci.unitPrice)}/món</div>
+                           </div>
+                           <div className="text-sm font-black text-indigo-600">{formatMoney(ci.totalPrice)}</div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-4 bg-gray-50 rounded-xl px-2 py-1">
+                              <button className="h-6 w-6 text-gray-400 hover:text-indigo-600 disabled:opacity-30" onClick={() => handleQtyChange(ci.id, ci.quantity - 1)} disabled={ci.quantity <= 1}>-</button>
+                              <span className="text-sm font-black w-4 text-center">{ci.quantity}</span>
+                              <button className="h-6 w-6 text-gray-400 hover:text-indigo-600" onClick={() => handleQtyChange(ci.id, ci.quantity + 1)}>+</button>
+                           </div>
+                           <button className="text-[10px] font-bold text-gray-300 hover:text-red-500 uppercase tracking-widest" onClick={() => handleRemove(ci.id)}>Xóa món</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-          {!cart ? (
-            <div>Chưa có giỏ hàng.</div>
-          ) : (
-            <>
-              <div className="mb-2 text-sm text-gray-600">
-                Order: <b>{cart.orderNumber}</b>
-              </div>
-
-              <div className="grid gap-2.5">
-                {(cart.items || []).map((ci) => (
-                  <div key={ci.id} className="rounded-xl border border-gray-200 p-2.5">
-                    <div className="font-bold text-gray-900">{ci.itemName}</div>
-                    <div className="mt-1 text-sm text-gray-600">
-                      Đơn giá: {formatMoney(ci.unitPrice)} • Thành tiền: <b>{formatMoney(ci.totalPrice)}</b>
-                    </div>
-
-                    <div className="mt-2.5 flex items-center gap-2">
-                      <button
-                        className="h-7 w-7 cursor-pointer rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-100"
-                        onClick={() => handleQtyChange(ci.id, Math.max(1, (ci.quantity || 1) - 1))}
-                      >
-                        -
-                      </button>
-                      <div className="min-w-6 text-center text-sm font-medium">{ci.quantity}</div>
-                      <button
-                        className="h-7 w-7 cursor-pointer rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-100"
-                        onClick={() => handleQtyChange(ci.id, (ci.quantity || 1) + 1)}
-                      >
-                        +
-                      </button>
-
-                      <button className="ml-auto cursor-pointer rounded-md border border-gray-300 bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200" onClick={() => handleRemove(ci.id)}>
-                        Xóa
-                      </button>
+                  <div className="mt-8 space-y-3 border-t border-gray-50 pt-6">
+                    <div className="flex justify-between text-xs text-gray-500 font-medium"><span>Tạm tính</span><span>{formatMoney(cartTotals.subtotal)}</span></div>
+                    <div className="flex justify-between text-xs text-gray-500 font-medium"><span>Thuế & Phí</span><span>{formatMoney(cartTotals.taxAmount + cartTotals.serviceCharge)}</span></div>
+                    <div className="flex justify-between pt-2">
+                       <span className="text-lg font-black text-gray-900 uppercase tracking-tighter">Tổng cộng</span>
+                       <span className="text-2xl font-black text-indigo-600">{formatMoney(cartTotals.totalAmount)}</span>
                     </div>
                   </div>
-                ))}
-                {(cart.items || []).length === 0 ? <div>Giỏ hàng trống.</div> : null}
-              </div>
 
-              <div className="mt-3 border-t border-gray-200 pt-3 text-sm">
-                <div>Subtotal: <b>{formatMoney(cartTotals.subtotal)}</b></div>
-                <div>Tax: <b>{formatMoney(cartTotals.taxAmount)}</b></div>
-                <div>Service: <b>{formatMoney(cartTotals.serviceCharge)}</b></div>
-                <div className="mt-1.5 text-base">Total: <b>{formatMoney(cartTotals.totalAmount)}</b></div>
-              </div>
-
-              {/* ✅ Place order button */}
-              <button
-                className="mt-3 w-full cursor-pointer rounded-lg border border-blue-700 bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => setPlaceOrderModalOpen(true)}
-                disabled={(cart.items || []).length === 0}
-              >
-                Đặt món
-              </button>
-            </>
-          )}
+                  <button
+                    className="mt-8 w-full rounded-2xl bg-black py-4 text-sm font-black uppercase tracking-widest text-white shadow-2xl transition-all hover:bg-indigo-700 active:scale-95 disabled:opacity-30"
+                    disabled={!cart?.items?.length}
+                    onClick={() => setPlaceOrderModalOpen(true)}
+                  >
+                    Xác nhận đặt hàng
+                  </button>
+                </>
+              )}
+           </div>
         </div>
       </div>
 
-      <div className="mt-3.5 text-xs text-gray-500">
-        QR: <code>{effectiveQrCode}</code> • restaurantId: {String(restaurantId || '')} • tableId: {String(tableId || '')}
-      </div>
-
-      {/* Menu item detail modal */}
-      <MenuItemDetailModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        menuItem={selectedMenuItem}
-      />
-
-      {/* ✅ Place order modal */}
-      <PlaceOrderModal
-        open={placeOrderModalOpen}
-        onClose={() => setPlaceOrderModalOpen(false)}
-        cart={cart}
-        onSuccess={handlePlaceOrderSuccess}
-      />
-
-      {/* ✅ Review modal */}
-      <ReviewModal
-        open={reviewModalOpen}
-        onClose={() => setReviewModalOpen(false)}
-        order={placedOrder}
+      {/* Modals */}
+      <MenuItemDetailModal open={modalOpen} onClose={() => setModalOpen(false)} menuItem={selectedMenuItem} />
+      <ComboDetailModal open={comboModalOpen} onClose={() => setComboModalOpen(false)} combo={selectedCombo} onAdd={handleAddCombo} />
+      <PlaceOrderModal open={placeOrderModalOpen} onClose={() => setPlaceOrderModalOpen(false)} cart={cart} onSuccess={handlePlaceOrderSuccess} />
+      <ReviewModal 
+        isOpen={reviewModalOpen} 
+        onClose={() => setReviewModalOpen(false)} 
+        restaurantId={restaurantId}
+        order={placedOrder} 
       />
     </div>
   );

@@ -10,6 +10,7 @@ import paymentRoute from './paymentRoute.js';
 import promotionRoute from './promotionRoute.js';
 import reviewRoute from './reviewRoute.js';
 import reportRoute from './reportRoute.js';
+import comboRoute from './comboRoute.js';
 
 const router = express.Router();
 
@@ -24,5 +25,6 @@ router.use('/payments', paymentRoute);
 router.use('/promotions', promotionRoute);
 router.use('/reviews', reviewRoute);
 router.use('/reports', reportRoute);
+router.use('/combos', comboRoute);
 
 export default router;

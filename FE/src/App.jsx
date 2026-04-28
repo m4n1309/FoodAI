@@ -14,6 +14,7 @@ import KitchenPage from './pages/admin/KitchenPage.jsx';
 import PromotionsPage from './pages/admin/PromotionsPage.jsx';
 import RevenueReportPage from './pages/admin/RevenueReportPage.jsx';
 import PopularItemsReportPage from './pages/admin/PopularItemsReportPage.jsx';
+import CombosPage from './pages/admin/CombosPage';
 import CustomerMenuPage from './pages/customer/CustomerMenuPage';
 import { toastOptions } from './config/toastConfig.js';
 
@@ -166,6 +167,15 @@ function App() {
             />
 
             <Route
+              path="/admin/combos"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <CombosPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/admin/reports"
               element={
                 <ProtectedRoute allowedRoles={['admin', 'manager']}>
@@ -175,15 +185,15 @@ function App() {
             />
 
             <Route
-            path="/admin/reports/popular"
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                <PopularItemsReportPage />
-              </ProtectedRoute>
-            }
-          />
+              path="/admin/reports/popular"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <PopularItemsReportPage />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route path="/admin" element={<AdminIndexRedirect />} />
+            <Route path="/admin" element={<AdminIndexRedirect />} />
             <Route path="/" element={<Navigate to="/admin/login" replace />} />
             <Route path="*" element={<Navigate to="/admin/login" replace />} />
           </Routes>

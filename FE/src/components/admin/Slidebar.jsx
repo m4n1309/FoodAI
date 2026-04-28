@@ -73,6 +73,12 @@ const Sidebar = ({ isOpen, onClose }) => {
       roles: ['admin', 'manager'],
     },
     {
+      name: 'Combo',
+      href: '/admin/combos',
+      icon: RectangleStackIcon, // Reusing icon or I can find another one
+      roles: ['admin', 'manager'],
+    },
+    {
       name: 'Cài đặt',
       href: '/admin/settings',
       icon: CogIcon,
@@ -172,6 +178,11 @@ const Sidebar = ({ isOpen, onClose }) => {
       </div>
     </>
   );
+};
+
+Sidebar.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
 };
 
 export default Sidebar;
