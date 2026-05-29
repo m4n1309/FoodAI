@@ -11,6 +11,7 @@ import promotionRoute from './promotionRoute.js';
 import reviewRoute from './reviewRoute.js';
 import reportRoute from './reportRoute.js';
 import comboRoute from './comboRoute.js';
+import chatbotRoute from './chatbotRoutes.js';
 
 const router = express.Router();
 
@@ -26,5 +27,6 @@ router.use('/promotions', promotionRoute);
 router.use('/reviews', reviewRoute);
 router.use('/reports', reportRoute);
 router.use('/combos', comboRoute);
+router.use('/chatbot', chatbotRoute);
 
 export default router;

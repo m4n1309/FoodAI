@@ -5,6 +5,7 @@ import {
   successResponse,
   errorResponse
 } from '../utils/ResponseHelper.js';
+import db from '../models/index.js';
 
 const bootstrap = async (req, res) => {
   try {
@@ -24,4 +25,39 @@ const bootstrap = async (req, res) => {
   }
 };
 
-export default { bootstrap };
+const checkIn = async (req, res) => {
+  try {
+    const { phone, fullName } = req.body;
+    if (!phone) {
+      return errorResponse(res, 'Phone number is required', StatusCodes.BAD_REQUEST);
+    }
+
+    let customer = await db.Customer.findOne({ where: { phone } });
+    if (!customer) {
+      customer = await db.Customer.create({ phone, fullName: fullName || 'Khách hàng' });
+    } else if (fullName && customer.fullName !== fullName) {
+      await customer.update({ fullName });
+    }
+
+    // Save this customer info into the active session's cart in the database
+    if (req.customerSessionId) {
+      const activeCart = await db.Order.findOne({
+        where: { sessionId: req.customerSessionId, orderStatus: 'cart' }
+      });
+      if (activeCart) {
+        await activeCart.update({
+          customerId: customer.id,
+          customerName: customer.fullName,
+          customerPhone: customer.phone
+        });
+      }
+    }
+
+    return successResponse(res, customer, 'Checked in successfully');
+  } catch (err) {
+    console.error(err);
+    return errorResponse(res, 'Failed to check in', StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export default { bootstrap, checkIn };

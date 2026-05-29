@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import orderService from '../../services/orderService.js';
 import tableApi from '../../services/tableService.js';
 import toast from 'react-hot-toast';
+import { useSocket } from '../../hooks/useSocket.js';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { MagnifyingGlassIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
@@ -22,6 +23,8 @@ const OrdersPage = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   
+  const socket = useSocket();
+
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
@@ -78,6 +81,29 @@ const OrdersPage = () => {
     }, 10000);
     return () => clearInterval(intervalId);
   }, [user?.restaurantId, filterStatus, searchTerm, currentPage, pageSize]);
+
+  // Real-time socket listener for payment updates
+  useEffect(() => {
+    if (!socket || !user?.restaurantId) return;
+
+    const handleGlobalPaymentUpdate = (data) => {
+      // Show global toast alert for staff
+      const amountFmt = data.amount ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(data.amount) : '';
+      const message = data.orderNumber && data.amount 
+        ? `Đơn hàng #${data.orderNumber} vừa được thanh toán ${amountFmt} qua QR!`
+        : `Đơn hàng đã được thanh toán qua QR!`;
+        
+      toast.success(message, {
+        icon: '💰',
+        duration: 8000
+      });
+      // Immediately refresh the orders board
+      fetchOrders();
+    };
+
+    socket.on('order_payment_updated', handleGlobalPaymentUpdate);
+    return () => socket.off('order_payment_updated', handleGlobalPaymentUpdate);
+  }, [socket, user?.restaurantId, fetchOrders]);
 
   useEffect(() => {
     setCurrentPage(1);

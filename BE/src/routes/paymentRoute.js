@@ -7,6 +7,10 @@ const router = express.Router({ mergeParams: true });
 
 const allowedRoles = ['admin', 'manager', 'cashier', 'waiter'];
 
+// Webhook from SePay (public route, authenticated via token in controller)
+// Chú ý: Đặt route này TƯƠNG ĐỐI so với /api/payment, hoặc cấu hình router không mergeParams cho cái này
+router.post('/sepay-webhook', paymentController.sepayWebhook);
+
 router.get('/', authenticate, roleCheck(allowedRoles), paymentController.getPaymentHistory);
 router.post('/', authenticate, roleCheck(allowedRoles), paymentController.createPayment);
 

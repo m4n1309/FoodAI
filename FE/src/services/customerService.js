@@ -2,6 +2,7 @@ import httpClient from './httpClient.js';
 
 const customerService = {
   bootstrap: (qrCode) => httpClient.get('/customer/bootstrap', { params: { qrCode } }),
+  checkIn: (payload) => httpClient.post('/customer/check-in', payload),
   createOrGetCart: ({ restaurantId, tableId }) => httpClient.post('/customer/cart', { restaurantId, tableId }),
   getCart: ({ restaurantId, tableId }) => httpClient.get('/customer/cart', { params: { restaurantId, tableId } }),
   addCartItem: (payload) => httpClient.post('/customer/cart/items', payload),
@@ -13,7 +14,8 @@ const customerService = {
   submitMenuItemReview: (payload) => httpClient.post('/reviews/menu-item', payload),
   getRestaurantReviews: (restaurantId, params) => httpClient.get(`/reviews/restaurant/${restaurantId}`, { params }),
   getMenuItemReviews: (menuItemId, params) => httpClient.get(`/reviews/menu-item/${menuItemId}`, { params }),
-  getAvailablePromotions: (restaurantId) => httpClient.get(`/promotions/public/${restaurantId}`)
+  getAvailablePromotions: (restaurantId) => httpClient.get(`/promotions/public/${restaurantId}`),
+  chatbotQuery: (payload) => httpClient.post('/customer/chatbot/query', payload)
 };
 
 export default customerService;

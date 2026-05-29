@@ -47,4 +47,4 @@ coverage/
 # File lớn / binary
 *.zip
 *.tar.gz
-*.rar
+*.rarvenv/ ─╯

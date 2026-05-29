@@ -76,7 +76,116 @@ const createPayment = async (req, res) => {
   }
 };
 
+const sepayWebhook = async (req, res) => {
+  try {
+    const { headers, body } = req;
+    const webhookToken = process.env.SEPAY_WEBHOOK_TOKEN;
+
+    // 1. Verify Token
+    if (webhookToken && webhookToken !== 'your_sepay_webhook_token_here') {
+      const authHeader = headers['authorization'] || '';
+      if (!authHeader.includes(webhookToken)) {
+        console.warn('SePay Webhook: Invalid token');
+        return res.status(401).json({ success: false, message: 'Invalid token' });
+      }
+    }
+
+    const amountIn = body.transferAmount || body.amountIn;
+    const transactionContent = body.content || body.transactionContent;
+    const referenceCode = body.referenceCode;
+
+    console.log('SePay Webhook Received:', body, 'amountIn evaluated to:', amountIn);
+
+    // 2. We only care about incoming money
+    if (!amountIn || amountIn <= 0 || body.transferType === 'out') {
+      return res.status(200).json({ success: true, message: 'Not an incoming transaction' });
+    }
+
+    // 3. Extract orderNumber from transactionContent
+    // Giả định nội dung CK có chứa mã đơn hàng. Trích xuất các chuỗi liên tục (chữ/số/gạch ngang) từ nội dung CK.
+    const potentialOrderNumbers = (transactionContent || '').match(/[A-Za-z0-9-]+/g) || [];
+    
+    const db = (await import('../models/index.js')).default;
+    let order = null;
+    
+    for (const word of potentialOrderNumbers) {
+      if (word.length >= 4) {
+        // Many banks strip hyphens, so we normalize both DB orderNumber and the word to remove hyphens
+        const normalizedWord = word.replace(/-/g, '');
+        order = await db.Order.findOne({ 
+          where: db.sequelize.where(
+            db.sequelize.fn('REPLACE', db.sequelize.col('order_number'), '-', ''),
+            normalizedWord
+          )
+        });
+        if (order) break;
+      }
+    }
+
+    if (!order) {
+      console.warn(`SePay Webhook: No order found for content "${transactionContent}"`);
+      return res.status(200).json({ success: true, message: 'Order not found' });
+    }
+
+    // 4. Verify Amount
+    if (parseFloat(amountIn) < parseFloat(order.totalAmount)) {
+      console.warn(`SePay Webhook: Insufficient amount. Expected ${order.totalAmount}, got ${amountIn}`);
+      return res.status(200).json({ success: true, message: 'Insufficient amount' });
+    }
+
+    // 5. Update Order Status and Payment History
+    if (order.paymentStatus !== 'paid') {
+      await db.sequelize.transaction(async (t) => {
+        order.paymentStatus = 'paid';
+        order.paymentMethod = 'bank_transfer';
+        await order.save({ transaction: t });
+
+        await db.PaymentHistory.create({
+          orderId: order.id,
+          amount: amountIn,
+          paymentMethod: 'bank_transfer',
+          paymentStatus: 'completed',
+          transactionId: referenceCode || 'SEPAY',
+          notes: `SePay Webhook: ${transactionContent}`
+        }, { transaction: t });
+      });
+
+      // 6. Notify via Socket.io
+      const io = req.app.locals.io;
+      if (io) {
+        io.to(`order:${order.id}`).emit('payment_confirmed', {
+          paymentId: referenceCode,
+          amount: amountIn,
+          paymentMethod: 'bank_transfer'
+        });
+        
+        if (order.tableId) {
+          io.to(`table:${order.tableId}`).emit('payment_confirmed', {
+            paymentId: referenceCode,
+            amount: amountIn,
+            paymentMethod: 'bank_transfer',
+            orderId: order.id
+          });
+        }
+
+        io.to(`restaurant:${order.restaurantId}`).emit('order_payment_updated', {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          amount: amountIn,
+          paymentStatus: 'paid'
+        });
+      }
+    }
+
+    return res.status(200).json({ success: true, message: 'Payment processed' });
+  } catch (error) {
+    console.error('SePay Webhook Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error', error: error.message, stack: error.stack });
+  }
+};
+
 export default {
   getPaymentHistory,
-  createPayment
+  createPayment,
+  sepayWebhook
 };

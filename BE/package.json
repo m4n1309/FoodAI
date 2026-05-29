@@ -4,8 +4,11 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "concurrently \"node src/server.js\" \"npm run start:ai\"",
+    "dev": "concurrently \"npm run dev:node\" \"npm run dev:ai\"",
+    "dev:node": "nodemon src/server.js",
+    "dev:ai": "cd python_rag_service && source venv/bin/activate && python main.py",
+    "start:ai": "cd python_rag_service && source venv/bin/activate && python main.py",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -30,6 +33,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "nodemon": "^3.1.14"
   }
 }

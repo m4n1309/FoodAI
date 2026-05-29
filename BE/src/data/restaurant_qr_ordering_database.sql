@@ -320,6 +320,7 @@ CREATE TABLE chatbot_conversations (
     order_id BIGINT,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     ended_at TIMESTAMP NULL,
     FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
@@ -340,6 +341,7 @@ CREATE TABLE chatbot_messages (
     message_type ENUM('text', 'image', 'menu_recommendation', 'order_status') DEFAULT 'text',
     metadata JSON, -- Thông tin bổ sung
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (conversation_id) REFERENCES chatbot_conversations(id) ON DELETE CASCADE,
     FOREIGN KEY (sender_id) REFERENCES staff(id) ON DELETE SET NULL,
     INDEX idx_conversation (conversation_id),

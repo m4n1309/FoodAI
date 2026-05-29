@@ -6,6 +6,7 @@ import paymentService from '../../services/paymentService.js';
 import toast from 'react-hot-toast';
 import InvoicePrintTemplate from './InvoicePrintTemplate.jsx';
 import { useReactToPrint } from 'react-to-print';
+import { useSocket } from '../../hooks/useSocket.js';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -22,6 +23,7 @@ const OrderDetailModal = ({ isOpen, onClose, order, onUpdateStatus, loading }) =
   const [payMethod, setPayMethod] = useState('');
 
   const printRef = useRef();
+  const socket = useSocket();
 
   useEffect(() => {
     if (isOpen && order) {
@@ -38,6 +40,28 @@ const OrderDetailModal = ({ isOpen, onClose, order, onUpdateStatus, loading }) =
       setPayAmount(remaining);
     }
   }, [isOpen, order, payments]);
+
+  // Listen for socket payment updates
+  useEffect(() => {
+    if (!socket || !isOpen || !order) return;
+
+    const handlePaymentUpdated = (data) => {
+      if (String(data.orderId) === String(order.id)) {
+        loadPayments();
+        const amountFmt = data.amount ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(data.amount) : '';
+        if (amountFmt) {
+          toast.success(`Khách đã thanh toán ${amountFmt} qua mã QR!`, { icon: '💰', duration: 8000 });
+        } else {
+          toast.success('Khách đã thanh toán qua mã QR!', { icon: '💰', duration: 8000 });
+        }
+      }
+    };
+
+    socket.on('order_payment_updated', handlePaymentUpdated);
+    return () => {
+      socket.off('order_payment_updated', handlePaymentUpdated);
+    };
+  }, [socket, isOpen, order]);
 
   const loadPayments = async () => {
     try {
@@ -321,6 +345,22 @@ const OrderDetailModal = ({ isOpen, onClose, order, onUpdateStatus, loading }) =
                                     ))}
                                   </div>
                                 </div>
+
+                                {payMethod === 'bank_transfer' && (
+                                  <div className="flex flex-col items-center justify-center p-4 bg-white border border-blue-200 rounded-xl shadow-sm animate-fade-in-up">
+                                    <p className="text-sm font-bold text-gray-800 mb-2">Đưa mã này cho khách quét</p>
+                                    <div className="p-2 bg-white rounded-xl shadow-sm border border-gray-100 mb-2">
+                                      <img 
+                                        src={`https://qr.sepay.vn/img?acc=${import.meta.env.VITE_SEPAY_ACCOUNT_NO || 'YOUR_ACCOUNT'}&bank=${import.meta.env.VITE_SEPAY_BANK || 'YOUR_BANK'}&amount=${payAmount || remainingRemaining}&des=${order.orderNumber}`} 
+                                        alt="Thanh toán QR" 
+                                        className="w-40 h-40"
+                                      />
+                                    </div>
+                                    <p className="text-xs text-gray-500 text-center">
+                                      Hệ thống tự động nhận diện thanh toán<br/>khi khách chuyển khoản thành công.
+                                    </p>
+                                  </div>
+                                )}
 
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền thu</label>
