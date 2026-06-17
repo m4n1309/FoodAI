@@ -31,7 +31,7 @@ const OrderDetailModal = ({ isOpen, onClose, order, onUpdateStatus, loading }) =
       loadPayments();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, order?.id]);
+  }, [isOpen]);
 
   // Sync payAmount with remaining after loading payments
   useEffect(() => {
