@@ -1037,7 +1037,7 @@ BEGIN
 
     SELECT COALESCE(SUM(total_price), 0) INTO v_subtotal
     FROM order_items
-    WHERE order_id = p_order_id;
+    WHERE order_id = p_order_id AND item_status != 'cancelled';
 
     SELECT r.tax_rate, r.service_charge_rate
     INTO v_tax_rate, v_service_rate

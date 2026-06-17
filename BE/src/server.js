@@ -117,6 +117,45 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log('Database connected');
 
+    // Recreate sp_calculate_order_total to exclude cancelled items from calculation
+    console.log('Updating stored procedure sp_calculate_order_total...');
+    await sequelize.query('DROP PROCEDURE IF EXISTS sp_calculate_order_total');
+    await sequelize.query(`
+      CREATE PROCEDURE sp_calculate_order_total(
+          IN p_order_id BIGINT
+      )
+      BEGIN
+          DECLARE v_subtotal DECIMAL(10,2);
+          DECLARE v_tax_rate DECIMAL(5,2);
+          DECLARE v_service_rate DECIMAL(5,2);
+          DECLARE v_tax_amount DECIMAL(10,2);
+          DECLARE v_service_charge DECIMAL(10,2);
+          DECLARE v_total DECIMAL(10,2);
+          
+          SELECT COALESCE(SUM(total_price), 0) INTO v_subtotal
+          FROM order_items
+          WHERE order_id = p_order_id AND item_status != 'cancelled';
+          
+          SELECT r.tax_rate, r.service_charge_rate
+          INTO v_tax_rate, v_service_rate
+          FROM orders o
+          JOIN restaurants r ON o.restaurant_id = r.id
+          WHERE o.id = p_order_id;
+          
+          SET v_tax_amount = v_subtotal * v_tax_rate / 100;
+          SET v_service_charge = v_subtotal * v_service_rate / 100;
+          SET v_total = v_subtotal + v_tax_amount + v_service_charge;
+          
+          UPDATE orders
+          SET subtotal = v_subtotal,
+              tax_amount = v_tax_amount,
+              service_charge = v_service_charge,
+              total_amount = v_total
+          WHERE id = p_order_id;
+      END
+    `);
+    console.log('Stored procedure sp_calculate_order_total updated successfully.');
+
     // ✅ Create HTTP server
     const httpServer = http.createServer(app);
 

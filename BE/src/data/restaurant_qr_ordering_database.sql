@@ -603,10 +603,10 @@ BEGIN
     DECLARE v_service_charge DECIMAL(10,2);
     DECLARE v_total DECIMAL(10,2);
     
-    -- Tính tổng tiền món ăn
+    -- Tính tổng tiền món ăn (loại trừ các món đã bị hủy)
     SELECT COALESCE(SUM(total_price), 0) INTO v_subtotal
     FROM order_items
-    WHERE order_id = p_order_id;
+    WHERE order_id = p_order_id AND item_status != 'cancelled';
     
     -- Lấy tỷ lệ thuế và phí phục vụ
     SELECT r.tax_rate, r.service_charge_rate
