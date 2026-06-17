@@ -137,11 +137,35 @@ const revokeSession = async (req, res) => {
   }
 }
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    await authService.forgotPassword({ email });
+    return successResponse(res, null, 'Mã OTP đã được gửi về email của bạn.');
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return handleServiceError(res, error, 'Có lỗi xảy ra khi yêu cầu lấy lại mật khẩu');
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    await authService.resetPassword({ email, otp, newPassword });
+    return successResponse(res, null, 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.');
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return handleServiceError(res, error, 'Có lỗi xảy ra khi đặt lại mật khẩu');
+  }
+};
+
 export default {
   login,
   logout,
   refreshAccessToken,
   getCurStaff,
   getSessions,
-  revokeSession
-}
+  revokeSession,
+  forgotPassword,
+  resetPassword
+};

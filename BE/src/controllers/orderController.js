@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse } from '../utils/ResponseHelper.js';
 import { isServiceError } from '../services/serviceError.js';
 import orderService from '../services/orderService.js';
+import db from '../models/index.js';
 
 const handleServiceError = (res, error, fallbackMessage) => {
   if (!isServiceError(error)) {
@@ -80,8 +81,53 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
+const createOrder = async (req, res) => {
+  try {
+    const restaurantId = req.staff.restaurantId;
+    const staffId = req.staff.id;
+    const { tableId, customerName, customerPhone, items } = req.body;
+
+    const order = await orderService.createOrder({
+      restaurantId,
+      tableId,
+      customerName,
+      customerPhone,
+      items,
+      staffId
+    });
+
+    // Notify clients over WebSockets
+    const io = req.app.locals.io;
+    if (io) {
+      let tableNumber = 'mang về';
+      if (order.tableId) {
+        const table = await db.Table.findByPk(order.tableId, { attributes: ['tableNumber'] });
+        tableNumber = table?.tableNumber || 'mang về';
+      }
+
+      io.to(`restaurant:${restaurantId}`).emit('order_placed', {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        tableId: order.tableId,
+        tableNumber
+      });
+      io.to(`restaurant:${restaurantId}`).emit('new_order', {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        tableId: order.tableId,
+        tableNumber
+      });
+    }
+
+    return successResponse(res, order, 'Đơn hàng đã được tạo thành công!', StatusCodes.CREATED);
+  } catch (error) {
+    return handleServiceError(res, error, 'Tạo đơn hàng thất bại');
+  }
+};
+
 export default {
   getAllOrders,
   getOrderById,
-  updateOrderStatus
+  updateOrderStatus,
+  createOrder
 };

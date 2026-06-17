@@ -28,14 +28,14 @@ router.get('/:id', tableController.getTableById);
 // Create table
 router.post('/',
   authenticate,
-  roleCheck(['admin', 'manager']),
+  roleCheck(['admin']),
   tableController.createTable
 );
 
 // Update table
 router.put('/:id',
   authenticate,
-  roleCheck(['admin', 'manager']),
+  roleCheck(['admin']),
   tableController.updateTable
 );
 
@@ -49,14 +49,14 @@ router.delete('/:id',
 // Update table status
 router.patch('/:id/status',
   authenticate,
-  roleCheck(['admin', 'manager', 'waiter']),
+  roleCheck(['admin', 'waiter']),
   tableController.updateTableStatus
 );
 
 // Generate/Regenerate QR code
 router.post('/:id/qr-code',
   authenticate,
-  roleCheck(['admin', 'manager']),
+  roleCheck(['admin']),
   tableController.generateTableQRCode
 );
 

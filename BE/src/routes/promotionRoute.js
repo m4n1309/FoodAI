@@ -30,13 +30,12 @@ router.post('/validate',
 
 // ADMIN / STAFF Routes
 router.use(authenticate);
-router.use(roleCheck(['admin', 'manager']));
 
-router.get('/', promotionController.getPromotions);
-router.get('/:id', promotionController.getPromotionById);
+router.get('/', roleCheck(['admin', 'waiter']), promotionController.getPromotions);
+router.get('/:id', roleCheck(['admin', 'waiter']), promotionController.getPromotionById);
 
-router.post('/', promotionValidation, validationMiddleware, promotionController.createPromotion);
-router.put('/:id', promotionValidation, validationMiddleware, promotionController.updatePromotion);
-router.delete('/:id', promotionController.deletePromotion);
+router.post('/', roleCheck(['admin']), promotionValidation, validationMiddleware, promotionController.createPromotion);
+router.put('/:id', roleCheck(['admin']), promotionValidation, validationMiddleware, promotionController.updatePromotion);
+router.delete('/:id', roleCheck(['admin']), promotionController.deletePromotion);
 
 export default router;

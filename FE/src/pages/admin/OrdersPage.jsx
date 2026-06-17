@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import OrderDetailModal from '../../components/admin/OrderDetailModal';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -8,9 +9,11 @@ import toast from 'react-hot-toast';
 import { useSocket } from '../../hooks/useSocket.js';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { MagnifyingGlassIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ArrowPathIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { playNotificationSound } from '../../utils/sound.js';
 
 const OrdersPage = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   
   const [orders, setOrders] = useState([]);
@@ -62,7 +65,7 @@ const OrdersPage = () => {
     }
   }, [user?.restaurantId, fetchOrders]);
 
-  // Polling every 10 seconds for new orders
+  // Polling every 2 seconds for new orders
   useEffect(() => {
     const intervalId = setInterval(() => {
       if (user?.restaurantId) {
@@ -72,37 +75,48 @@ const OrdersPage = () => {
         if (filterStatus !== 'all') params.status = filterStatus;
 
         orderService.getAll(params).then(res => {
-          setOrders(res.data.orders || []);
+          const freshOrders = res.data.orders || [];
+          setOrders(freshOrders);
           setTotalItems(res.data.total || 0);
           setTotalPages(res.data.totalPages || 1);
           setLastRefreshed(new Date());
+          
+          // Update selectedOrder if modal is open to keep details fresh
+          setSelectedOrder(prev => {
+            if (!prev) return prev;
+            const updated = freshOrders.find(o => o.id === prev.id);
+            return updated ? updated : prev;
+          });
         }).catch(err => console.error('Silent fetch failed:', err));
       }
-    }, 10000);
+    }, 2000);
     return () => clearInterval(intervalId);
   }, [user?.restaurantId, filterStatus, searchTerm, currentPage, pageSize]);
 
-  // Real-time socket listener for payment updates
+  // Real-time socket listener for payment updates and order modifications
   useEffect(() => {
     if (!socket || !user?.restaurantId) return;
 
     const handleGlobalPaymentUpdate = (data) => {
-      // Show global toast alert for staff
-      const amountFmt = data.amount ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(data.amount) : '';
-      const message = data.orderNumber && data.amount 
-        ? `Đơn hàng #${data.orderNumber} vừa được thanh toán ${amountFmt} qua QR!`
-        : `Đơn hàng đã được thanh toán qua QR!`;
-        
-      toast.success(message, {
-        icon: '💰',
-        duration: 8000
-      });
       // Immediately refresh the orders board
       fetchOrders();
     };
 
+    const handleOrderUpdated = () => {
+      fetchOrders();
+    };
+
     socket.on('order_payment_updated', handleGlobalPaymentUpdate);
-    return () => socket.off('order_payment_updated', handleGlobalPaymentUpdate);
+    socket.on('order_updated', handleOrderUpdated);
+    socket.on('payment_requested', handleOrderUpdated);
+    socket.on('item_status_changed', handleOrderUpdated);
+
+    return () => {
+      socket.off('order_payment_updated', handleGlobalPaymentUpdate);
+      socket.off('order_updated', handleOrderUpdated);
+      socket.off('payment_requested', handleOrderUpdated);
+      socket.off('item_status_changed', handleOrderUpdated);
+    };
   }, [socket, user?.restaurantId, fetchOrders]);
 
   useEffect(() => {
@@ -191,7 +205,14 @@ const OrdersPage = () => {
           </div>
 
           <div className="flex items-center text-sm text-gray-500">
-            <span className="mr-3">Tự động làm mới mỗi 10s</span>
+            <button
+              onClick={() => navigate('/admin/dashboard?openPOS=true')}
+              className="btn-primary flex items-center justify-center py-2 px-4 text-xs font-bold whitespace-nowrap shadow-md shadow-primary-500/10 mr-4"
+            >
+              <PlusIcon className="h-4 w-4 mr-1.5" />
+              Đặt món tại bàn
+            </button>
+            <span className="mr-3 hidden sm:inline">Tự động làm mới mỗi 10s</span>
             <button
               onClick={fetchOrders}
               className="btn-secondary flex items-center justify-center p-2"

@@ -20,7 +20,7 @@ const LoginPage = () => {
     if (isAuthenticated && user) {
       let defaultPath = '/admin/dashboard';
       if (user.role === 'kitchen') defaultPath = '/admin/kitchen';
-      else if (['waiter', 'cashier'].includes(user.role)) defaultPath = '/admin/orders';
+      else if (user.role === 'waiter') defaultPath = '/admin/orders';
 
       const from = location.state?.from?.pathname || defaultPath;
       navigate(from, { replace: true });
@@ -45,7 +45,7 @@ const LoginPage = () => {
       const role = result.user?.role || user?.role;
       let defaultPath = '/admin/dashboard';
       if (role === 'kitchen') defaultPath = '/admin/kitchen';
-      else if (['waiter', 'cashier'].includes(role)) defaultPath = '/admin/orders';
+      else if (role === 'waiter') defaultPath = '/admin/orders';
 
       const from = location.state?.from?.pathname || defaultPath;
       navigate(from, { replace: true });
@@ -95,9 +95,19 @@ const LoginPage = () => {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Mật khẩu
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Mật khẩu
+                </label>
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/forgot-password')}
+                  className="text-xs text-primary-600 hover:text-primary-800 font-medium cursor-pointer"
+                  disabled={loading}
+                >
+                  Quên mật khẩu?
+                </button>
+              </div>
               <div className="relative">
                 <input
                   id="password"

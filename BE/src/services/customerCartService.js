@@ -313,7 +313,7 @@ const removeItem = async ({ sessionId, id }) => {
  * Chuyển giỏ hàng (cart) thành đơn hàng chính thức (pending).
  * Validate: session đúng, status === 'cart', chưa hết hạn, có ít nhất 1 item.
  */
-const placeOrder = async ({ sessionId, orderId, customerName, customerNote, promotionCode, pointsToRedeem, customerId }) => {
+const placeOrder = async ({ sessionId, orderId, customerName, customerPhone, customerNote, promotionCode, pointsToRedeem, customerId }) => {
   if (!orderId) {
     throw new ServiceError('orderId is required', StatusCodes.BAD_REQUEST);
   }
@@ -327,12 +327,35 @@ const placeOrder = async ({ sessionId, orderId, customerName, customerNote, prom
     throw new ServiceError('Cannot place an empty order', StatusCodes.BAD_REQUEST);
   }
 
+  const phone = (customerPhone || '').trim();
+  const name = (customerName || '').trim();
+
+  if (!name) {
+    throw new ServiceError('Tên khách hàng là bắt buộc', StatusCodes.BAD_REQUEST);
+  }
+  if (!phone) {
+    throw new ServiceError('Số điện thoại khách hàng là bắt buộc', StatusCodes.BAD_REQUEST);
+  }
+  if (!/^[0-9+ ]{9,15}$/.test(phone)) {
+    throw new ServiceError('Số điện thoại không hợp lệ', StatusCodes.BAD_REQUEST);
+  }
+
+  let finalCustomerId = customerId;
+  let customer = await db.Customer.findOne({ where: { phone } });
+  if (!customer) {
+    customer = await db.Customer.create({ phone, fullName: name });
+  } else if (customer.fullName !== name) {
+    await customer.update({ fullName: name });
+  }
+  finalCustomerId = customer.id;
+
   await db.sequelize.transaction(async (transaction) => {
     await cart.update({
       orderStatus: 'pending',
-      customerName: (customerName || '').trim() || null,
+      customerName: name || null,
+      customerPhone: phone || null,
       customerNote: (customerNote || '').trim() || null,
-      customerId: customerId || null
+      customerId: finalCustomerId || null
     }, { transaction });
 
     // Try calling the total-calculation stored procedure if it exists
@@ -429,11 +452,167 @@ const placeOrder = async ({ sessionId, orderId, customerName, customerNote, prom
   return { sessionId, order: fullOrder };
 };
 
+const getActiveOrder = async ({ sessionId, restaurantId, tableId }) => {
+  if (!restaurantId || !tableId) {
+    throw new ServiceError('restaurantId and tableId are required', StatusCodes.BAD_REQUEST);
+  }
+
+  const activeOrder = await db.Order.findOne({
+    where: {
+      restaurantId,
+      tableId,
+      orderStatus: {
+        [db.Sequelize.Op.notIn]: ['cart', 'completed', 'cancelled']
+      }
+    },
+    include: [{
+      model: db.OrderItem,
+      as: 'items',
+      include: [
+        { model: db.MenuItem, as: 'menuItem', required: false },
+        { model: db.Combo, as: 'combo', required: false }
+      ]
+    }],
+    order: [['created_at', 'DESC']]
+  });
+
+  if (!activeOrder) {
+    return { sessionId, order: null };
+  }
+
+  const orderObj = activeOrder.toJSON();
+  // Nếu session ID của khách không trùng với session ID tạo đơn (hoặc đơn do nhân viên tạo có session_id = null)
+  // thì ẩn các thông tin nhạy cảm của khách
+  if (orderObj.sessionId !== sessionId) {
+    if (orderObj.customerPhone && orderObj.customerPhone.length >= 6) {
+      const len = orderObj.customerPhone.length;
+      orderObj.customerPhone = orderObj.customerPhone.slice(0, 3) + '*'.repeat(len - 6) + orderObj.customerPhone.slice(len - 3);
+    } else if (orderObj.customerPhone) {
+      orderObj.customerPhone = '***';
+    }
+    orderObj.customerNote = null;
+  }
+
+  return { sessionId, order: orderObj };
+};
+
+/**
+ * Thêm món vào đơn đang hoạt động của bàn (không tạo đơn mới).
+ * Dùng khi khách đã đặt đơn rồi nhưng muốn gọi thêm.
+ */
+const addItemToActiveOrder = async ({ sessionId, restaurantId, tableId, itemType, menuItemId, comboId, quantity = 1, specialInstructions }) => {
+  if (!restaurantId || !tableId) {
+    throw new ServiceError('restaurantId and tableId are required', StatusCodes.BAD_REQUEST);
+  }
+  if (!itemType) {
+    throw new ServiceError('itemType is required', StatusCodes.BAD_REQUEST);
+  }
+
+  // Tìm đơn active của bàn
+  const activeOrder = await db.Order.findOne({
+    where: {
+      restaurantId,
+      tableId,
+      orderStatus: {
+        [Op.notIn]: ['cart', 'completed', 'cancelled']
+      }
+    },
+    order: [['created_at', 'DESC']]
+  });
+
+  if (!activeOrder) {
+    throw new ServiceError('Không tìm thấy đơn hàng đang hoạt động tại bàn này', StatusCodes.NOT_FOUND);
+  }
+
+  const qty = Math.max(1, parseInt(quantity, 10) || 1);
+
+  const itemSource = await resolveOrderItemSource({
+    itemType,
+    menuItemId,
+    comboId,
+    cartRestaurantId: activeOrder.restaurantId
+  });
+
+  const normalizedInstructions = (specialInstructions || '').trim() || null;
+
+  // Check if same item already exists with pending status & same instructions
+  const existingItemWhere = {
+    orderId: activeOrder.id,
+    itemType,
+    itemStatus: 'pending',
+    menuItemId: itemSource.menuItemId,
+    comboId: itemSource.comboId,
+    specialInstructions: normalizedInstructions
+  };
+
+  let item = await db.OrderItem.findOne({ where: existingItemWhere });
+
+  if (item) {
+    const mergedQty = Number(item.quantity || 0) + qty;
+    const mergedTotalPrice = Number(itemSource.unitPrice) * mergedQty;
+    await item.update({
+      itemName: itemSource.itemName,
+      unitPrice: itemSource.unitPrice,
+      quantity: mergedQty,
+      totalPrice: mergedTotalPrice
+    });
+  } else {
+    item = await db.OrderItem.create({
+      orderId: activeOrder.id,
+      menuItemId: itemSource.menuItemId,
+      comboId: itemSource.comboId,
+      itemType,
+      itemName: itemSource.itemName,
+      quantity: qty,
+      unitPrice: itemSource.unitPrice,
+      totalPrice: Number(itemSource.unitPrice) * qty,
+      specialInstructions: normalizedInstructions,
+      itemStatus: 'pending'
+    });
+  }
+
+  // Recalculate order total
+  try {
+    await db.sequelize.query(
+      'CALL sp_calculate_order_total(:orderId)',
+      { replacements: { orderId: activeOrder.id } }
+    );
+  } catch (err) {
+    console.error('sp_calculate_order_total failed in addItemToActiveOrder:', err);
+  }
+
+  let newOrderStatus = activeOrder.orderStatus;
+  if (['ready', 'serving'].includes(activeOrder.orderStatus)) {
+    newOrderStatus = 'preparing';
+  }
+
+  await activeOrder.update({
+    orderStatus: newOrderStatus,
+    updatedAt: new Date()
+  });
+
+  // Return updated order with all items
+  const fullOrder = await db.Order.findByPk(activeOrder.id, {
+    include: [{
+      model: db.OrderItem,
+      as: 'items',
+      include: [
+        { model: db.MenuItem, as: 'menuItem', required: false },
+        { model: db.Combo, as: 'combo', required: false }
+      ]
+    }]
+  });
+
+  return { sessionId, order: fullOrder, newItem: item };
+};
+
 export default {
   createOrGetCart,
   getCart,
   addItem,
   updateItem,
   removeItem,
-  placeOrder
+  placeOrder,
+  getActiveOrder,
+  addItemToActiveOrder
 };

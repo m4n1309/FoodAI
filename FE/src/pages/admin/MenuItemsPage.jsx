@@ -237,13 +237,15 @@ const MenuItemsPage = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => handleOpenModal()}
-            className="btn-primary flex items-center justify-center lg:justify-start"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Thêm món ăn
-          </button>
+          {user?.role !== 'waiter' && (
+            <button
+              onClick={() => handleOpenModal()}
+              className="btn-primary flex items-center justify-center lg:justify-start"
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Thêm món ăn
+            </button>
+          )}
         </div>
 
         {/* Filters */}
@@ -415,43 +417,49 @@ const MenuItemsPage = () => {
                   >
                     {item.isAvailable ? 'Còn món' : 'Hết món'}
                   </span>
-                  <button
-                    onClick={() => handleToggleFeatured(item)}
-                    className="p-1 hover:bg-gray-100 rounded transition-colors"
-                    title={item.isFeatured ? 'Bỏ nổi bật' : 'Đánh dấu nổi bật'}
-                  >
-                    {item.isFeatured ? (
-                      <StarIconSolid className="h-5 w-5 text-yellow-500" />
-                    ) : (
-                      <StarIcon className="h-5 w-5 text-gray-400" />
-                    )}
-                  </button>
+                  {user?.role === 'waiter' ? (
+                    item.isFeatured ? <StarIconSolid className="h-5 w-5 text-yellow-500" /> : null
+                  ) : (
+                    <button
+                      onClick={() => handleToggleFeatured(item)}
+                      className="p-1 hover:bg-gray-100 rounded transition-colors"
+                      title={item.isFeatured ? 'Bỏ nổi bật' : 'Đánh dấu nổi bật'}
+                    >
+                      {item.isFeatured ? (
+                        <StarIconSolid className="h-5 w-5 text-yellow-500" />
+                      ) : (
+                        <StarIcon className="h-5 w-5 text-gray-400" />
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex items-center space-x-2 pt-3 border-t border-gray-200">
-                <button
-                  onClick={() => handleToggleAvailability(item)}
-                  className="flex-1 btn-secondary text-xs"
-                >
-                  {item.isAvailable ? 'Hết món' : 'Còn món'}
-                </button>
-                <button
-                  onClick={() => handleOpenModal(item)}
-                  className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                  title="Chỉnh sửa"
-                >
-                  <PencilIcon className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleOpenDeleteDialog(item)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Xóa"
-                >
-                  <TrashIcon className="h-4 w-4" />
-                </button>
-              </div>
+              {user?.role !== 'waiter' && (
+                <div className="flex items-center space-x-2 pt-3 border-t border-gray-200">
+                  <button
+                    onClick={() => handleToggleAvailability(item)}
+                    className="flex-1 btn-secondary text-xs"
+                  >
+                    {item.isAvailable ? 'Hết món' : 'Còn món'}
+                  </button>
+                  <button
+                    onClick={() => handleOpenModal(item)}
+                    className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                    title="Chỉnh sửa"
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleOpenDeleteDialog(item)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Xóa"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

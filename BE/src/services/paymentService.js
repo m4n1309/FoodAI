@@ -28,7 +28,7 @@ const getPaymentHistory = async (orderId, restaurantId) => {
 const createPayment = async (orderId, restaurantId, paymentData, staffId) => {
   const { amount, paymentMethod, transactionId, notes } = paymentData;
 
-  const validMethods = ['cash', 'bank_transfer', 'card', 'e_wallet'];
+  const validMethods = ['cash', 'bank_transfer'];
   if (!validMethods.includes(paymentMethod)) {
     throw new ServiceError('Invalid payment method', StatusCodes.BAD_REQUEST);
   }

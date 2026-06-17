@@ -9,10 +9,10 @@ const router = express.Router();
 router.get('/', comboController.getAllCombos);
 router.get('/:id', comboController.getComboById);
 
-// Protected routes (admin/manager)
-router.post('/', authenticate, roleCheck(['admin', 'manager']), comboController.createCombo);
-router.put('/:id', authenticate, roleCheck(['admin', 'manager']), comboController.updateCombo);
-router.delete('/:id', authenticate, roleCheck(['admin', 'manager']), comboController.deleteCombo);
-router.patch('/:id/toggle-availability', authenticate, roleCheck(['admin', 'manager']), comboController.toggleAvailability);
+// Protected routes (admin)
+router.post('/', authenticate, roleCheck(['admin']), comboController.createCombo);
+router.put('/:id', authenticate, roleCheck(['admin']), comboController.updateCombo);
+router.delete('/:id', authenticate, roleCheck(['admin']), comboController.deleteCombo);
+router.patch('/:id/toggle-availability', authenticate, roleCheck(['admin']), comboController.toggleAvailability);
 
 export default router;

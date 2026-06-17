@@ -1,10 +1,86 @@
-.DS_Storevenv/
-BE/python_rag_service/venv/
+.DS_Store
+**/venv/
+__pycache__/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.env
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Node.js / npm
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+# nếu dùng yarn thì ignore ngược lại
+yarn.lock           # nếu dùng npm thì ignore ngược lại
+
+# Logs / temp files
+*.log
+*.logs
+*.log.*
+logs/
+tmp/
+temp/
+
+# Environment variables (rất quan trọng!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build / dist
+dist/
+build/
+out/
+
+# Editor / IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store   # macOS
+Thumbs.db   # Windows
+
+# Database backups / dump
+*.sql.bak
+*.sql.gz
+dump.sql
+backup.sql
+
+
+# File cá nhân / test
+coverage/
 venv/
-BE/python_rag_service/venv/
-venv/
-BE/python_rag_service/venv/
-BE/python_rag_service/venv/
-BE/python_rag_service/venv/
-BE/python_rag_service/venv/
-venv/
+**/venv/
+__pycache__/
+
+# File lớn / binary
+*.zip
+*.tar.gz
+*.rarvenv/
+
+# SSH private keys
+*.pem

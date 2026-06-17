@@ -31,7 +31,7 @@ router.post('/',
 
 // ADMIN / STAFF ROUTES
 router.use(authenticate);
-router.use(roleCheck(['admin', 'manager', 'staff']));
+router.use(roleCheck(['admin', 'waiter']));
 
 router.get('/admin/all', reviewController.getAllReviewsAdmin);
 

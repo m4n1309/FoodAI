@@ -104,10 +104,12 @@ const PromotionsPage = () => {
     <AdminLayout title="Quản lý Khuyến mãi (Vouchers)">
       <div className="mb-6 flex justify-between items-center">
         <p className="text-gray-600">Thiết lập các mã Voucher kích cầu cho nhà hàng</p>
-        <button className="btn-primary flex items-center" onClick={() => handleOpenModal()}>
-          <PlusIcon className="h-5 w-5 mr-1" />
-          Tạo Voucher
-        </button>
+        {user?.role !== 'waiter' && (
+          <button className="btn-primary flex items-center" onClick={() => handleOpenModal()}>
+            <PlusIcon className="h-5 w-5 mr-1" />
+            Tạo Voucher
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -127,7 +129,9 @@ const PromotionsPage = () => {
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Giảm giá</th>
                 <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái/Hạn</th>
                 <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Sử dụng</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  {user?.role !== 'waiter' && 'Thao tác'}
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -148,6 +152,10 @@ const PromotionsPage = () => {
                     <td className="px-5 py-4 whitespace-nowrap text-center">
                       {expired ? (
                         <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">Đã hết hạn</span>
+                      ) : user?.role === 'waiter' ? (
+                        <span className={p.isActive ? "bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium" : "bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium"}>
+                          {p.isActive ? 'Đang bật' : 'Đang Tắt'}
+                        </span>
                       ) : (
                         <button
                           onClick={() => handleToggleStatus(p)}
@@ -162,12 +170,16 @@ const PromotionsPage = () => {
                       <div className="text-sm font-semibold text-gray-800">{p.usageCount} / {p.usageLimit || '∞'}</div>
                     </td>
                     <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button onClick={() => handleOpenModal(p)} className="text-primary-600 hover:text-primary-900 mr-3" title="Chỉnh sửa">
-                        <PencilIcon className="h-5 w-5 inline" />
-                      </button>
-                      <button onClick={() => { setSelectedPromotion(p); setIsDeleteDialogOpen(true); }} className="text-red-600 hover:text-red-900" title="Xóa">
-                        <TrashIcon className="h-5 w-5 inline" />
-                      </button>
+                      {user?.role !== 'waiter' && (
+                        <>
+                          <button onClick={() => handleOpenModal(p)} className="text-primary-600 hover:text-primary-900 mr-3" title="Chỉnh sửa">
+                            <PencilIcon className="h-5 w-5 inline" />
+                          </button>
+                          <button onClick={() => { setSelectedPromotion(p); setIsDeleteDialogOpen(true); }} className="text-red-600 hover:text-red-900" title="Xóa">
+                            <TrashIcon className="h-5 w-5 inline" />
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 );

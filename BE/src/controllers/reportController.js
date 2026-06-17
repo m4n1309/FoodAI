@@ -49,7 +49,20 @@ const getPopularItems = async (req, res) => {
   }
 };
 
+const getDashboardStats = async (req, res) => {
+  try {
+    const data = await reportService.getDashboardStats({
+      restaurantId: req.staff.restaurantId
+    });
+    return successResponse(res, data, 'Dashboard stats retrieved successfully');
+  } catch (error) {
+    console.error('Error in getDashboardStats controller:', error);
+    return errorResponse(res, 'Failed to retrieve dashboard stats', StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
 export default {
   getRevenueReport,
-  getPopularItems
+  getPopularItems,
+  getDashboardStats
 };

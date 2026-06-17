@@ -43,8 +43,11 @@ backup.sql
 
 # File cá nhân / test
 coverage/
+venv/
+**/venv/
+__pycache__/
 
 # File lớn / binary
 *.zip
 *.tar.gz
-*.rarvenv/ ─╯
+*.rarvenv/

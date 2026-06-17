@@ -1,0 +1,38 @@
+name: FoodAI CI/CD Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            cd /home/ubuntu/foodai
+            
+            # Initialize git repository if not already managed by git
+            if [ ! -d .git ]; then
+              git init
+              git remote add origin https://github.com/m4n1309/FoodAI.git
+              git fetch origin
+              git checkout -f main
+            else
+              git fetch origin
+              git reset --hard origin/main
+            fi
+            
+            # Rebuild and start container services
+            docker compose -f docker-compose.ec2.yml up -d --build --force-recreate frontend backend
+            
+            # Clean up dangling images to save disk space
+            docker image prune -f

@@ -11,6 +11,7 @@ import {
   CogIcon,
   ArrowRightOnRectangleIcon,
   TicketIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth.js';
 
@@ -22,61 +23,67 @@ const Sidebar = ({ isOpen, onClose }) => {
       name: 'Dashboard',
       href: '/admin/dashboard',
       icon: HomeIcon,
-      roles: ['admin', 'manager'],
+      roles: ['admin', 'waiter'],
     },
     {
       name: 'Danh mục',
       href: '/admin/categories',
       icon: RectangleStackIcon,
-      roles: ['admin', 'manager'],
+      roles: ['admin'],
     },
     {
       name: 'Món ăn',
       href: '/admin/menu-items',
       icon: ShoppingBagIcon,
-      roles: ['admin', 'manager'],
+      roles: ['admin', 'waiter'],
     },
     {
       name: 'Bàn ăn',
       href: '/admin/tables',
       icon: TableCellsIcon,
-      roles: ['admin', 'manager'],
+      roles: ['admin', 'waiter'],
     },
     {
       name: 'Đơn hàng',
       href: '/admin/orders',
       icon: ShoppingCartIcon,
-      roles: ['admin', 'manager', 'waiter'],
+      roles: ['admin', 'waiter'],
     },
     {
       name: 'Bếp KDS',
       href: '/admin/kitchen',
       icon: FireIcon,
-      roles: ['admin', 'manager', 'kitchen'],
+      roles: ['admin', 'kitchen'],
     },
     {
       name: 'Báo cáo',
       href: '/admin/reports',
       icon: ChartBarIcon,
-      roles: ['admin', 'manager'],
+      roles: ['admin'],
     },
     {
       name: 'Món ăn bán chạy',
       href: '/admin/reports/popular',
       icon: FireIcon,
-      roles: ['admin', 'manager'],
+      roles: ['admin'],
     },
     {
       name: 'Khuyến mãi',
       href: '/admin/promotions',
       icon: TicketIcon,
-      roles: ['admin', 'manager'],
+      roles: ['admin', 'waiter'],
     },
     {
       name: 'Combo',
       href: '/admin/combos',
       icon: RectangleStackIcon, // Reusing icon or I can find another one
-      roles: ['admin', 'manager'],
+      roles: ['admin', 'waiter'],
+    },
+    {
+      name: 'Nhân viên',
+      href: '/admin/staffs',
+      icon: UserGroupIcon,
+      roles: ['admin'],
     },
     {
       name: 'Cài đặt',
@@ -123,7 +130,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
             </div>
-            <span className="text-white font-bold text-lg">Admin</span>
+            <span className="text-white font-bold text-lg">m4nFood</span>
           </div>
         </div>
 

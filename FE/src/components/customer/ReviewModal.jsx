@@ -11,6 +11,30 @@ const ReviewModal = ({ isOpen, onClose, restaurantId, order }) => {
 
   if (!isOpen) return null;
 
+  const getPreExistingCustomerInfo = () => {
+    if (order?.customerPhone) {
+      return {
+        name: order.customerName || 'Khách hàng',
+        phone: order.customerPhone
+      };
+    }
+    try {
+      const saved = sessionStorage.getItem('foodai_customer');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.phone) {
+          return {
+            name: parsed.fullName || 'Khách hàng',
+            phone: parsed.phone
+          };
+        }
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const customerInfo = getPreExistingCustomerInfo();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!restaurantId && !order?.restaurantId) {
@@ -23,8 +47,8 @@ const ReviewModal = ({ isOpen, onClose, restaurantId, order }) => {
       await customerApi.submitReview({
         restaurantId: order?.restaurantId || restaurantId,
         orderId: order?.id,
-        customerName: order?.customerName || 'Khách hàng',
-        customerPhone: phone.trim() || undefined,
+        customerName: customerInfo?.name || order?.customerName || 'Khách hàng',
+        customerPhone: customerInfo?.phone || phone.trim() || undefined,
         rating,
         comment
       });
@@ -74,22 +98,28 @@ const ReviewModal = ({ isOpen, onClose, restaurantId, order }) => {
             <span className="text-sm text-yellow-600 mt-2 font-bold">{rating} Sao tuyệt vời</span>
           </div>
 
-          <div className="pt-2">
-            <label className="block text-sm font-medium text-indigo-700 mb-1 flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v1m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              Số điện thoại tích điểm (+100 điểm)
-            </label>
-            <input
-              type="tel"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-indigo-50 placeholder-indigo-300"
-              placeholder="09xx..."
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              disabled={submitting}
-              maxLength={15}
-            />
-            <p className="text-xs text-gray-500 mt-1 italic">Nhập SĐT để nhận 100 điểm khách hàng thân thiết!</p>
-          </div>
+          {customerInfo ? (
+            <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 text-xs text-indigo-800 font-medium">
+              ✨ Đang dùng thông tin thành viên: <span className="font-bold">{customerInfo.name}</span> ({customerInfo.phone})
+            </div>
+          ) : (
+            <div className="pt-2">
+              <label className="block text-sm font-medium text-indigo-700 mb-1 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v1m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Số điện thoại tích điểm (+100 điểm)
+              </label>
+              <input
+                type="tel"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-indigo-50 placeholder-indigo-300"
+                placeholder="09xx..."
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                disabled={submitting}
+                maxLength={15}
+              />
+              <p className="text-xs text-gray-500 mt-1 italic">Nhập SĐT để nhận 100 điểm khách hàng thân thiết!</p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

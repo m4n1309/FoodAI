@@ -173,13 +173,15 @@ const CombosPage = () => {
             <option value="unavailable">Tạm dừng</option>
           </select>
           
-          <button
-            onClick={() => handleOpenModal()}
-            className="btn-primary flex items-center"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Thêm Combo
-          </button>
+          {user?.role !== 'waiter' && (
+            <button
+              onClick={() => handleOpenModal()}
+              className="btn-primary flex items-center"
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Thêm Combo
+            </button>
+          )}
         </div>
       </div>
 
@@ -260,27 +262,29 @@ const CombosPage = () => {
                   {combo.isAvailable ? 'Đang bán' : 'Tạm dừng'}
                 </span>
                 
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleToggleAvailability(combo)}
-                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                    title={combo.isAvailable ? 'Ẩn khỏi menu' : 'Hiện trên menu'}
-                  >
-                     <InformationCircleIcon className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleOpenModal(combo)}
-                    className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                  >
-                    <PencilIcon className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleOpenDeleteDialog(combo)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
-                </div>
+                {user?.role !== 'waiter' && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleToggleAvailability(combo)}
+                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      title={combo.isAvailable ? 'Ẩn khỏi menu' : 'Hiện trên menu'}
+                    >
+                       <InformationCircleIcon className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleOpenModal(combo)}
+                      className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                    >
+                      <PencilIcon className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleOpenDeleteDialog(combo)}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

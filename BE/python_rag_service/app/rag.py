@@ -4,15 +4,10 @@ from typing import List, Dict, Any, Optional
 
 import numpy as np
 import faiss
-import torch
-from sentence_transformers import SentenceTransformer, CrossEncoder
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from google import genai
+from google.genai import types
 from sqlalchemy import text
-import os
-try:
-    import google.generativeai as genai
-except ImportError:
-    genai = None
+
 
 from app.config import settings
 from app.db import engine, ensure_tables
@@ -21,50 +16,38 @@ from app.ingest import fetch_kb_rows, build_chunks, upsert_chunks
 
 class RAGEngine:
     def __init__(self) -> None:
-        self._embedder: Optional[SentenceTransformer] = None
-        self._reranker: Optional[CrossEncoder] = None
-        self._tokenizer = None
-        self._llm = None
+        self._client: Optional[genai.Client] = None
         self._index = None
         self._chunk_records: List[Dict[str, Any]] = []
 
     def initialize(self) -> None:
         ensure_tables()
+        if not settings.gemini_api_key:
+            raise RuntimeError(
+                "GEMINI_API_KEY is required. Set it in .env file."
+            )
+        self._client = genai.Client(api_key=settings.gemini_api_key)
         self.load_index()
-        if os.getenv("GEMINI_API_KEY") and genai:
-            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        if settings.load_on_startup:
-            self._load_models()
-
-    def _load_models(self) -> None:
-        if self._embedder is None:
-            self._embedder = SentenceTransformer(
-                settings.embedding_model,
-                device=settings.device,
-            )
-        if settings.enable_reranker and self._reranker is None:
-            self._reranker = CrossEncoder(
-                settings.reranker_model,
-                device=settings.device,
-            )
-        
-        # Chỉ load Local LLM nếu không dùng Gemini API
-        if settings.enable_llm and not os.getenv("GEMINI_API_KEY") and (self._tokenizer is None or self._llm is None):
-            self._tokenizer = AutoTokenizer.from_pretrained(settings.llm_model)
-            self._llm = AutoModelForCausalLM.from_pretrained(
-                settings.llm_model,
-                torch_dtype=torch.float32,
-                device_map=None,
-            )
 
     def _embed_texts(self, texts: List[str]) -> np.ndarray:
         if not texts:
-            return np.zeros((0, 1), dtype=np.float32)
-        embeddings = self._embedder.encode(texts, normalize_embeddings=True)
-        return np.array(embeddings, dtype=np.float32)
+            return np.zeros((0, settings.embedding_dimension), dtype=np.float32)
+
+        all_embeddings: List[List[float]] = []
+        batch_size = 100  # Gemini API batch limit
+
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            result = self._client.models.embed_content(
+                model=settings.embedding_model,
+                contents=batch,
+            )
+            for emb in result.embeddings:
+                all_embeddings.append(emb.values)
+
+        return np.array(all_embeddings, dtype=np.float32)
 
     def ingest(self, restaurant_id: Optional[int] = None) -> Dict[str, Any]:
-        self._load_models()
         rows = fetch_kb_rows(restaurant_id=restaurant_id)
         chunks = build_chunks(rows)
         embeddings = self._embed_texts([c["chunk_text"] for c in chunks])
@@ -120,24 +103,15 @@ class RAGEngine:
             if len(candidates) >= settings.top_k_retrieval:
                 break
 
-        return candidates
+        # Lấy top_k_rerank theo cosine score (thay thế reranker)
+        return candidates[: settings.top_k_rerank]
 
-    def _rerank(self, query: str, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        if not chunks or not settings.enable_reranker or self._reranker is None:
-            return []
-
-        pairs = [(query, c["chunk_text"]) for c in chunks]
-        scores = self._reranker.predict(pairs)
-        reranked = []
-        for chunk, score in zip(chunks, scores):
-            updated = dict(chunk)
-            updated["rerank_score"] = float(score)
-            reranked.append(updated)
-
-        reranked.sort(key=lambda c: c["rerank_score"], reverse=True)
-        return reranked[: settings.top_k_rerank]
-
-    def _build_prompt(self, question: str, contexts: List[Dict[str, Any]], history: Optional[List[Dict[str, str]]] = None) -> Any:
+    def _build_prompt(
+        self,
+        question: str,
+        contexts: List[Dict[str, Any]],
+        history: Optional[List[Dict[str, str]]] = None,
+    ) -> List[Dict[str, str]]:
         context_text = "\n\n".join(
             [f"- {c['chunk_text']}" for c in contexts]
         )
@@ -156,10 +130,10 @@ class RAGEngine:
         messages = [
             {"role": "system", "content": system_message}
         ]
-        
+
         if history:
             messages.extend(history)
-            
+
         messages.append(
             {
                 "role": "user",
@@ -167,69 +141,61 @@ class RAGEngine:
             }
         )
 
-        if os.getenv("GEMINI_API_KEY"):
-            return messages
+        return messages
 
-        if hasattr(self._tokenizer, "apply_chat_template"):
-            return self._tokenizer.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
+    def _generate(self, prompt: List[Dict[str, str]]) -> str:
+        system_instruction = ""
+        gemini_contents: List[types.Content] = []
+
+        for msg in prompt:
+            if msg["role"] == "system":
+                system_instruction += msg["content"] + "\n"
+            elif msg["role"] == "user":
+                gemini_contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=msg["content"])],
+                    )
+                )
+            elif msg["role"] == "assistant":
+                gemini_contents.append(
+                    types.Content(
+                        role="model",
+                        parts=[types.Part.from_text(text=msg["content"])],
+                    )
+                )
+
+        try:
+            response = self._client.models.generate_content(
+                model=settings.llm_model,
+                contents=gemini_contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction.strip(),
+                    temperature=settings.temperature,
+                    top_p=settings.top_p,
+                    max_output_tokens=settings.max_new_tokens,
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
+                ),
             )
+            return response.text.strip()
+        except Exception as e:
+            print(f"Gemini API Error: {e}")
+            return "Xin lỗi, hiện tại hệ thống AI đang gặp sự cố. Vui lòng thử lại sau."
 
-        return (
-            f"<|system|>{system_message}</s>"
-            f"<|user|>{messages[1]['content']}</s>"
-            "<|assistant|>"
-        )
-
-    def _generate(self, prompt: Any) -> str:
-        if os.getenv("GEMINI_API_KEY") and genai and isinstance(prompt, list):
-            try:
-                system_instruction = ""
-                gemini_messages = []
-                for msg in prompt:
-                    if msg["role"] == "system":
-                        system_instruction += msg["content"] + "\n"
-                    elif msg["role"] == "user":
-                        gemini_messages.append({"role": "user", "parts": [msg["content"]]})
-                    elif msg["role"] == "assistant":
-                        gemini_messages.append({"role": "model", "parts": [msg["content"]]})
-                        
-                model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_instruction.strip())
-                response = model.generate_content(gemini_messages)
-                return response.text.strip()
-            except Exception as e:
-                print("Gemini API Error:", e)
-                return "Xin loi, hien tai he thong AI Cloud dang gap su co."
-
-        if not settings.enable_llm or self._llm is None:
-            return "Xin loi, hien tai he thong chua san sang sinh cau tra loi."
-            
-        inputs = self._tokenizer(prompt, return_tensors="pt")
-        inputs = {k: v.to(self._llm.device) for k, v in inputs.items()}
-
-        output = self._llm.generate(
-            **inputs,
-            max_new_tokens=settings.max_new_tokens,
-            do_sample=True,
-            temperature=settings.temperature,
-            top_p=settings.top_p,
-        )
-        input_len = inputs["input_ids"].shape[1]
-        generated_tokens = output[0][input_len:]
-        text = self._tokenizer.decode(generated_tokens, skip_special_tokens=True)
-        return text.strip()
-
-    def answer(self, question: str, restaurant_id: Optional[int], history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
-        self._load_models()
+    def answer(
+        self,
+        question: str,
+        restaurant_id: Optional[int],
+        history: Optional[List[Dict[str, str]]] = None,
+    ) -> Dict[str, Any]:
         candidates = self._search(question, restaurant_id)
-        reranked = self._rerank(question, candidates)
-        if not reranked:
+        if not candidates:
             return {
-                "response": "Xin loi, hien tai toi chua co du thong tin de tra loi.",
+                "response": "Xin lỗi, hiện tại tôi chưa có đủ thông tin để trả lời.",
                 "context": [],
             }
 
-        prompt = self._build_prompt(question, reranked, history)
+        prompt = self._build_prompt(question, candidates, history)
         response = self._generate(prompt)
 
         sources = [
@@ -237,14 +203,14 @@ class RAGEngine:
                 "source_type": c.get("source_type"),
                 "source_id": c.get("source_id"),
                 "restaurant_id": c.get("restaurant_id"),
-                "score": c.get("rerank_score"),
+                "score": c.get("score"),
             }
-            for c in reranked
+            for c in candidates
         ]
 
         return {
             "response": response,
-            "context": [c.get("chunk_text") for c in reranked],
+            "context": [c.get("chunk_text") for c in candidates],
             "sources": sources,
         }
 

@@ -257,22 +257,39 @@ const OrderDetailModal = ({ isOpen, onClose, order, onUpdateStatus, loading }) =
                         <div className="mb-6">
                           <h3 className="font-bold text-gray-900 mb-3 border-b pb-2">Danh sách món ({items.length})</h3>
                           <div className="space-y-3">
-                            {items.map((item) => (
-                              <div key={item.id} className="flex justify-between items-start">
-                                <div>
-                                  <p className="font-medium text-gray-900">
-                                    <span className="inline-block w-6 font-bold text-gray-500">{item.quantity}×</span> 
-                                    {item.itemName}
-                                  </p>
-                                  {item.specialInstructions && (
-                                    <p className="text-xs text-red-500 mt-0.5 ml-6">Note: {item.specialInstructions}</p>
-                                  )}
+                            {items.map((item) => {
+                              const isCancelled = item.itemStatus === 'cancelled';
+                              return (
+                                <div key={item.id} className="flex justify-between items-start">
+                                  <div>
+                                    <p className={`font-medium ${isCancelled ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                                      <span className="inline-block w-6 font-bold text-gray-500">{item.quantity}×</span> 
+                                      {item.itemName}
+                                      {isCancelled && (
+                                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-200">
+                                          Đã hủy
+                                        </span>
+                                      )}
+                                    </p>
+                                    {item.specialInstructions && (
+                                      <p className="text-xs text-red-500 mt-0.5 ml-6">Note: {item.specialInstructions}</p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    {isCancelled ? (
+                                      <p className="font-medium text-gray-400">
+                                        <span className="line-through mr-2 text-xs">{formatMoney(item.totalPrice)}</span>
+                                        <span className="text-red-600 font-bold">{formatMoney(0)}</span>
+                                      </p>
+                                    ) : (
+                                      <p className="font-medium text-gray-900">
+                                        {formatMoney(item.totalPrice)}
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
-                                <p className="font-medium text-gray-900">
-                                  {formatMoney(item.totalPrice)}
-                                </p>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -332,15 +349,13 @@ const OrderDetailModal = ({ isOpen, onClose, order, onUpdateStatus, loading }) =
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-2">Hình thức thanh toán <span className="text-red-500">*</span></label>
                                   <div className="grid grid-cols-2 gap-2">
-                                    {['cash', 'bank_transfer', 'card', 'e_wallet'].map(method => (
+                                    {['cash', 'bank_transfer'].map(method => (
                                       <button
                                         key={method}
                                         onClick={() => setPayMethod(method)}
                                         className={`px-3 py-2 text-sm rounded-lg border flex justify-center items-center gap-2 transition-all ${payMethod === method ? 'bg-blue-50 border-blue-600 text-blue-700 ring-1 ring-blue-600' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                                       >
-                                        {method === 'cash' ? '💵 Tiền mặt' :
-                                         method === 'bank_transfer' ? '🏦 Chuyển khoản' :
-                                         method === 'card' ? '💳 Thẻ (POS)' : '📱 Ví điện tử'}
+                                        {method === 'cash' ? '💵 Tiền mặt' : '🏦 Chuyển khoản'}
                                       </button>
                                     ))}
                                   </div>

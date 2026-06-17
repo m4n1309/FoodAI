@@ -8,7 +8,30 @@ import ImageWithFallback from '../common/ImageWithFallback';
 
 const formatMoney = (v) => Number(v || 0).toLocaleString('vi-VN') + 'đ';
 
-const PlaceOrderModal = ({ open, onClose, cart, onSuccess, onUpdateQty, onRemoveItem }) => {
+const CartItemNote = ({ itemId, initialNote, onUpdateNote }) => {
+  const [note, setNote] = useState(initialNote || '');
+
+  useEffect(() => {
+    setNote(initialNote || '');
+  }, [initialNote]);
+
+  return (
+    <input 
+      type="text"
+      placeholder="Ghi chú món ăn này (ví dụ: Không hành, ít cay...)"
+      value={note}
+      onChange={(e) => setNote(e.target.value)}
+      onBlur={() => {
+        if (note !== (initialNote || '')) {
+          onUpdateNote(itemId, note);
+        }
+      }}
+      className="w-full bg-orange-50/50 border border-orange-100 rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary-500 py-2 px-3 outline-none mt-2 placeholder-gray-400 text-gray-700"
+    />
+  );
+};
+
+const PlaceOrderModal = ({ open, onClose, cart, onSuccess, onUpdateQty, onUpdateNote, onRemoveItem }) => {
   const [customerName, setCustomerName] = useState('');
   const [customerId, setCustomerId] = useState(null);
   const [customerPhone, setCustomerPhone] = useState('');
@@ -81,16 +104,38 @@ const PlaceOrderModal = ({ open, onClose, cart, onSuccess, onUpdateQty, onRemove
       toast.error('Giỏ hàng trống!');
       return;
     }
+    if (!customerName.trim()) {
+      toast.error('Vui lòng điền tên của bạn!');
+      return;
+    }
+    if (!customerPhone.trim()) {
+      toast.error('Vui lòng điền số điện thoại!');
+      return;
+    }
+    if (!/^[0-9+ ]{9,15}$/.test(customerPhone.trim())) {
+      toast.error('Số điện thoại không hợp lệ!');
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await customerApi.placeOrder({
         orderId: cart.id,
         customerId: customerId || undefined,
         customerName: customerName.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
         customerNote: customerNote.trim() || undefined,
         promotionCode: (promotionCode.trim() && tentativeDiscount > 0) ? promotionCode.trim() : undefined
       });
       toast.success('Đặt món thành công! 🎉');
+      
+      if (customerPhone.trim()) {
+        sessionStorage.setItem('foodai_customer', JSON.stringify({
+          id: res.data.order?.customerId || customerId,
+          fullName: customerName.trim(),
+          phone: customerPhone.trim()
+        }));
+      }
+
       onSuccess(res.data.order);
       onClose();
     } catch (err) {
@@ -131,14 +176,14 @@ const PlaceOrderModal = ({ open, onClose, cart, onSuccess, onUpdateQty, onRemove
                 {/* Header (Mobile & Desktop) */}
                 <div className="flex justify-between items-center bg-white p-4 md:p-0 md:bg-transparent border-b md:border-none md:mb-6 sticky top-0 z-10 md:static">
                    <button onClick={onClose} className="text-gray-500 hover:text-gray-900 md:hidden"><XMarkIcon className="w-6 h-6"/></button>
-                   <div className="text-2xl font-black text-primary-600 tracking-tighter md:hidden">FreshDash</div>
+                   <div className="text-2xl font-black text-primary-600 tracking-tighter md:hidden">m4nFood</div>
                    <div className="w-6 md:hidden"></div>
                    
                    <button onClick={onClose} className="hidden md:flex items-center gap-2 text-gray-500 font-bold hover:text-primary-600 transition-colors">
                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                      Quay lại thực đơn
                    </button>
-                   <div className="hidden md:block text-3xl font-black text-primary-600 tracking-tighter mx-auto">FreshDash</div>
+                   <div className="hidden md:block text-3xl font-black text-primary-600 tracking-tighter mx-auto">m4nFood</div>
                    <div className="hidden md:block w-[140px]"></div>
                 </div>
 
@@ -157,23 +202,25 @@ const PlaceOrderModal = ({ open, onClose, cart, onSuccess, onUpdateQty, onRemove
                          <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                <div>
-                                  <label className="block text-xs font-bold text-gray-500 mb-1">Tên của bạn</label>
+                                  <label className="block text-xs font-bold text-gray-500 mb-1">Tên của bạn <span className="text-red-500">*</span></label>
                                   <input 
                                     type="text" 
                                     placeholder="Ví dụ: Nguyễn Văn A" 
                                     value={customerName}
                                     onChange={e => setCustomerName(e.target.value)}
                                     className="w-full bg-orange-50 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary-500 p-4" 
+                                    required
                                   />
                                </div>
                                <div>
-                                  <label className="block text-xs font-bold text-gray-500 mb-1">Số điện thoại</label>
+                                  <label className="block text-xs font-bold text-gray-500 mb-1">Số điện thoại <span className="text-red-500">*</span></label>
                                   <input 
                                     type="text" 
                                     placeholder="090 123 4567" 
                                     value={customerPhone}
                                     onChange={e => setCustomerPhone(e.target.value)}
                                     className="w-full bg-orange-50 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary-500 p-4" 
+                                    required
                                   />
                                </div>
                             </div>
@@ -202,7 +249,7 @@ const PlaceOrderModal = ({ open, onClose, cart, onSuccess, onUpdateQty, onRemove
                             {cart.items.map(ci => (
                                <div key={ci.id} className="flex gap-4 items-center">
                                   <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-100">
-                                     <ImageWithFallback src={ci.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=200&auto=format&fit=crop"} alt={ci.itemName} className="w-full h-full object-cover" />
+                                     <ImageWithFallback src={ci.menuItem?.imageUrl || ci.combo?.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=200&auto=format&fit=crop"} alt={ci.itemName} className="w-full h-full object-cover" />
                                   </div>
                                   <div className="flex-1 flex flex-col justify-between">
                                      <div>
@@ -236,6 +283,13 @@ const PlaceOrderModal = ({ open, onClose, cart, onSuccess, onUpdateQty, onRemove
                                         </div>
                                         <span className="text-sm font-bold text-gray-900">{formatMoney(ci.totalPrice)}</span>
                                      </div>
+                                     {onUpdateNote && (
+                                       <CartItemNote 
+                                         itemId={ci.id} 
+                                         initialNote={ci.specialInstructions} 
+                                         onUpdateNote={onUpdateNote} 
+                                       />
+                                     )}
                                   </div>
                                </div>
                             ))}

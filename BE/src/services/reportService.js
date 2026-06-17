@@ -167,7 +167,154 @@ const getPopularItems = async ({ restaurantId, from, to, categoryId, limit = 10 
   }));
 };
 
+const getDashboardStats = async ({ restaurantId }) => {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+
+  // 6. Trends: Yesterday vs Today comparison
+  const startOfYesterday = new Date(startOfToday);
+  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+  const endOfYesterday = new Date(endOfToday);
+  endOfYesterday.setDate(endOfYesterday.getDate() - 1);
+
+  // Execute all 8 queries in parallel
+  const [
+    revenueResult,
+    todayOrdersCount,
+    totalMenuItems,
+    occupiedTables,
+    totalTables,
+    recentOrders,
+    yesterdayRevenueResult,
+    yesterdayOrdersCount
+  ] = await Promise.all([
+    // 1. Total Revenue Today
+    db.Order.findOne({
+      where: {
+        restaurantId,
+        orderStatus: 'completed',
+        paymentStatus: 'paid',
+        completedAt: {
+          [Op.between]: [startOfToday, endOfToday]
+        }
+      },
+      attributes: [
+        [db.sequelize.fn('SUM', db.sequelize.col('total_amount')), 'totalRevenue']
+      ],
+      raw: true
+    }),
+
+    // 2. Today's Orders Count
+    db.Order.count({
+      where: {
+        restaurantId,
+        orderStatus: { [Op.ne]: 'cart' },
+        created_at: {
+          [Op.between]: [startOfToday, endOfToday]
+        }
+      }
+    }),
+
+    // 3. Total Menu Items
+    db.MenuItem.count({
+      where: { restaurantId, isAvailable: true }
+    }),
+
+    // 4. Tables In Use (occupied)
+    db.Table.count({
+      where: { restaurantId, isActive: true, status: 'occupied' }
+    }),
+
+    // 5. Total Tables
+    db.Table.count({
+      where: { restaurantId, isActive: true }
+    }),
+
+    // 6. Recent Orders (limit 5)
+    db.Order.findAll({
+      where: {
+        restaurantId,
+        orderStatus: { [Op.ne]: 'cart' }
+      },
+      limit: 5,
+      order: [['created_at', 'DESC']],
+      include: [
+        { model: db.Table, as: 'table', attributes: ['tableNumber'] },
+        {
+          model: db.OrderItem,
+          as: 'items',
+          attributes: ['id', 'itemStatus']
+        }
+      ]
+    }),
+
+    // 7. Yesterday's Revenue
+    db.Order.findOne({
+      where: {
+        restaurantId,
+        orderStatus: 'completed',
+        paymentStatus: 'paid',
+        completedAt: {
+          [Op.between]: [startOfYesterday, endOfYesterday]
+        }
+      },
+      attributes: [
+        [db.sequelize.fn('SUM', db.sequelize.col('total_amount')), 'totalRevenue']
+      ],
+      raw: true
+    }),
+
+    // 8. Yesterday's Orders Count
+    db.Order.count({
+      where: {
+        restaurantId,
+        orderStatus: { [Op.ne]: 'cart' },
+        created_at: {
+          [Op.between]: [startOfYesterday, endOfYesterday]
+        }
+      }
+    })
+  ]);
+
+  const totalRevenue = parseFloat(revenueResult?.totalRevenue || 0);
+  const yesterdayRevenue = parseFloat(yesterdayRevenueResult?.totalRevenue || 0);
+
+  const revenueChange = yesterdayRevenue > 0
+    ? (((totalRevenue - yesterdayRevenue) / yesterdayRevenue) * 100).toFixed(1)
+    : totalRevenue > 0 ? '+100' : '0';
+
+  const ordersChange = yesterdayOrdersCount > 0
+    ? (((todayOrdersCount - yesterdayOrdersCount) / yesterdayOrdersCount) * 100).toFixed(1)
+    : todayOrdersCount > 0 ? '+100' : '0';
+
+  return {
+    stats: {
+      totalRevenue,
+      revenueChange: parseFloat(revenueChange) >= 0 ? `+${revenueChange}%` : `${revenueChange}%`,
+      revenueTrend: parseFloat(revenueChange) >= 0 ? 'up' : 'down',
+      todayOrdersCount,
+      ordersChange: parseFloat(ordersChange) >= 0 ? `+${ordersChange}%` : `${ordersChange}%`,
+      ordersTrend: parseFloat(ordersChange) >= 0 ? 'up' : 'down',
+      totalMenuItems,
+      occupiedTables,
+      totalTables
+    },
+    recentOrders: recentOrders.map(order => ({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      tableNumber: order.table?.tableNumber || 'Mang về',
+      itemCount: order.items ? order.items.filter(i => i.itemStatus !== 'cancelled').length : 0,
+      totalAmount: parseFloat(order.totalAmount || 0),
+      orderStatus: order.orderStatus,
+      createdAt: order.created_at
+    }))
+  };
+};
+
 export default {
   getRevenueReport,
-  getPopularItems
+  getPopularItems,
+  getDashboardStats
 };

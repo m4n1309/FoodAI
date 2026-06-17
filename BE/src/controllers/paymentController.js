@@ -51,23 +51,34 @@ const createPayment = async (req, res) => {
       try {
         const db = (await import('../models/index.js')).default;
         const order = await db.Order.findByPk(orderId);
-        if (order && order.tableId) {
-          io.to(`table:${order.tableId}`).emit('payment_confirmed', {
-            paymentId: payment.id,
+        if (order) {
+          if (order.tableId) {
+            io.to(`table:${order.tableId}`).emit('payment_confirmed', {
+              paymentId: payment.id,
+              amount: payment.amount,
+              paymentMethod: payment.paymentMethod,
+              orderId: order.id
+            });
+          }
+
+          let tableNumber = 'mang về';
+          if (order.tableId) {
+            const table = await db.Table.findByPk(order.tableId, { attributes: ['tableNumber'] });
+            tableNumber = table?.tableNumber || 'mang về';
+          }
+
+          // also notify restaurant room
+          io.to(`restaurant:${req.staff.restaurantId}`).emit('order_payment_updated', {
+            orderId: orderId,
+            orderNumber: order.orderNumber,
+            tableNumber,
             amount: payment.amount,
-            paymentMethod: payment.paymentMethod,
-            orderId: order.id
+            paymentStatus: 'paid'
           });
         }
       } catch (err) {
-        console.error('Error emitting to table room on payment:', err);
+        console.error('Error emitting to table room or restaurant room on payment:', err);
       }
-      
-      // also notify restaurant room
-      io.to(`restaurant:${req.staff.restaurantId}`).emit('order_payment_updated', {
-        orderId: orderId,
-        paymentStatus: 'paid'
-      });
     }
 
     return successResponse(res, payment, 'Payment recorded successfully', StatusCodes.CREATED);
@@ -168,9 +179,16 @@ const sepayWebhook = async (req, res) => {
           });
         }
 
+        let tableNumber = 'mang về';
+        if (order.tableId) {
+          const table = await db.Table.findByPk(order.tableId, { attributes: ['tableNumber'] });
+          tableNumber = table?.tableNumber || 'mang về';
+        }
+
         io.to(`restaurant:${order.restaurantId}`).emit('order_payment_updated', {
           orderId: order.id,
           orderNumber: order.orderNumber,
+          tableNumber,
           amount: amountIn,
           paymentStatus: 'paid'
         });

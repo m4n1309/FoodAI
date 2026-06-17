@@ -5,8 +5,9 @@ import reportController from '../controllers/reportController.js';
 
 const router = express.Router();
 
-// Only admin and manager can access reports
-router.get('/revenue', authenticate, roleCheck(['admin', 'manager']), reportController.getRevenueReport);
-router.get('/popular-items', authenticate, roleCheck(['admin', 'manager']), reportController.getPopularItems);
+// Only admin can access reports, but waiter can access dashboard stats to place orders
+router.get('/revenue', authenticate, roleCheck(['admin']), reportController.getRevenueReport);
+router.get('/popular-items', authenticate, roleCheck(['admin']), reportController.getPopularItems);
+router.get('/dashboard-stats', authenticate, roleCheck(['admin', 'waiter']), reportController.getDashboardStats);
 
 export default router;

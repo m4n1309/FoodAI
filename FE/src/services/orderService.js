@@ -4,6 +4,9 @@ const orderService = {
   // Lấy danh sách đơn hàng cho staff/admin
   getAll: (params) => httpClient.get('/orders', { params }),
   
+  // Tạo đơn hàng mới (Staff)
+  create: (data) => httpClient.post('/orders', data),
+  
   // Lấy chi tiết một đơn hàng
   getById: (id) => httpClient.get(`/orders/${id}`),
   

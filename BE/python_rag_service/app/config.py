@@ -13,26 +13,27 @@ load_dotenv(_ENV_PATH)
 class Settings:
     port: int = int(os.getenv("RAG_PORT", "8001"))
 
-    load_on_startup: bool = os.getenv("RAG_LOAD_ON_STARTUP", "false").lower() == "true"
-    device: str = os.getenv("RAG_DEVICE", "cpu")
-    enable_reranker: bool = os.getenv("RAG_ENABLE_RERANKER", "true").lower() == "true"
-    enable_llm: bool = os.getenv("RAG_ENABLE_LLM", "true").lower() == "true"
+    # Gemini API
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
 
+    # Database
     db_host: str = os.getenv("DB_HOST", "localhost")
     db_user: str = os.getenv("DB_USER", "root")
     db_password: str = os.getenv("DB_PASSWORD", "")
     db_name: str = os.getenv("DB_NAME", "restaurant_qr_ordering")
     db_port: int = int(os.getenv("DB_PORT", "3306"))
 
-    embedding_model: str = os.getenv("RAG_EMBEDDING_MODEL", "BAAI/bge-m3")
-    reranker_model: str = os.getenv("RAG_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
-    llm_model: str = os.getenv("RAG_LLM_MODEL", "Qwen/Qwen2.5-1.5B-Instruct")
+    # Models (Gemini)
+    embedding_model: str = os.getenv("RAG_EMBEDDING_MODEL", "gemini-embedding-001")
+    llm_model: str = os.getenv("RAG_LLM_MODEL", "gemini-2.5-flash-lite")
+    embedding_dimension: int = int(os.getenv("RAG_EMBEDDING_DIM", "3072"))
 
+    # RAG parameters
     top_k_retrieval: int = int(os.getenv("RAG_TOP_K_RETRIEVAL", "10"))
     top_k_rerank: int = int(os.getenv("RAG_TOP_K_RERANK", "3"))
     chunk_size: int = int(os.getenv("RAG_CHUNK_SIZE", "512"))
     chunk_overlap: int = int(os.getenv("RAG_CHUNK_OVERLAP", "64"))
-    max_new_tokens: int = int(os.getenv("RAG_MAX_NEW_TOKENS", "256"))
+    max_new_tokens: int = int(os.getenv("RAG_MAX_NEW_TOKENS", "512"))
     temperature: float = float(os.getenv("RAG_TEMPERATURE", "0.1"))
     top_p: float = float(os.getenv("RAG_TOP_P", "0.9"))
 

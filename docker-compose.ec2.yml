@@ -1,0 +1,137 @@
+version: '3.8'
+
+services:
+  # 1. MySQL Database Service
+  db:
+    image: mysql:8.0
+    container_name: foodai-db-prod
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3306:3306" # Only expose DB to localhost for security
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-foodai}
+      MYSQL_USER: ${DB_USER:-foodai}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data_prod:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USER:-foodai}", "-p${DB_PASSWORD}"]
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - foodai-prod-network
+
+  # 2. Python AI RAG Service (FastAPI)
+  python-rag:
+    build:
+      context: ./BE/python_rag_service
+      dockerfile: Dockerfile
+    container_name: foodai-rag-prod
+    restart: unless-stopped
+    expose:
+      - "8001"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=${DB_USER:-foodai}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-foodai}
+      - RAG_PORT=8001
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - foodai-prod-network
+
+  # 3. Node.js Express Backend
+  backend:
+    build:
+      context: ./BE
+      dockerfile: Dockerfile
+    container_name: foodai-backend-prod
+    restart: unless-stopped
+    expose:
+      - "3000"
+    ports:
+      - "127.0.0.1:3000:3000" # Expose only to localhost (routed via host Nginx)
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=${DB_USER:-foodai}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-foodai}
+      - VECTOR_SERVICE_URL=http://python-rag:8001
+      - FRONTEND_URL=${FRONTEND_URL}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_CLIENT_ID=${EMAIL_CLIENT_ID}
+      - EMAIL_CLIENT_SECRET=${EMAIL_CLIENT_SECRET}
+      - EMAIL_REFRESH_TOKEN=${EMAIL_REFRESH_TOKEN}
+      - SEPAY_WEBHOOK_TOKEN=${SEPAY_WEBHOOK_TOKEN}
+      - SEPAY_ACCOUNT_NO=${SEPAY_ACCOUNT_NO}
+      - SEPAY_BANK=${SEPAY_BANK}
+    depends_on:
+      db:
+        condition: service_healthy
+      python-rag:
+        condition: service_started
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - foodai-prod-network
+
+  # 4. Frontend Web Server (React Static + Nginx Reverse Proxy)
+  frontend:
+    build:
+      context: ./FE
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-/api}
+        - VITE_APP_NAME=${VITE_APP_NAME:-m4nFood}
+        - VITE_SEPAY_ACCOUNT_NO=${SEPAY_ACCOUNT_NO}
+        - VITE_SEPAY_BANK=${SEPAY_BANK}
+    container_name: foodai-frontend-prod
+    restart: unless-stopped
+    ports:
+      - "8080:80" # Maps port 8080 on the host to container port 80 (Nginx routes host 80/443 to 8080)
+    environment:
+      - VITE_API_URL=/api
+      - VITE_APP_NAME=${VITE_APP_NAME:-m4nFood}
+      - VITE_SEPAY_ACCOUNT_NO=${SEPAY_ACCOUNT_NO}
+      - VITE_SEPAY_BANK=${SEPAY_BANK}
+    depends_on:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - foodai-prod-network
+
+volumes:
+  db_data_prod:
+
+networks:
+  foodai-prod-network:
+    name: foodai-prod-network

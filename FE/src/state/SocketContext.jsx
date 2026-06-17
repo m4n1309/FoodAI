@@ -9,7 +9,13 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    
+    // If API URL is a relative path (like /api), socket.io client should connect to the current host origin
+    if (apiUrl.startsWith('/')) {
+      apiUrl = window.location.origin;
+    }
+
     const newSocket = io(apiUrl, {
       withCredentials: true,
     });

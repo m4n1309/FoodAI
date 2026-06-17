@@ -20,7 +20,14 @@ router.patch('/cart/items/:id', requireCustomerSession, customerCartController.u
 router.delete('/cart/items/:id', requireCustomerSession, customerCartController.removeItem);
 
 // ✅ Place order (cart → pending)
+router.get('/orders/active', requireCustomerSession, customerCartController.getActiveOrder);
 router.post('/orders', requireCustomerSession, customerCartController.placeOrder);
+
+// ✅ Add items to active order (no new cart)
+router.post('/orders/active/items', requireCustomerSession, customerCartController.addItemToActiveOrder);
+
+// ✅ Request payment
+router.post('/orders/:orderId/request-payment', requireCustomerSession, customerCartController.requestPayment);
 
 // ✅ Chatbot (RAG)
 router.post('/chatbot/query', requireCustomerSession, chatbotController.query);

@@ -51,13 +51,20 @@ const InvoicePrintTemplate = forwardRef(({ order, payments }, ref) => {
           <span className="w-1/4 text-right">SL</span>
           <span className="w-1/4 text-right">Tổng</span>
         </div>
-        {(order.items || []).map((item, idx) => (
-          <div key={idx} className="flex justify-between mb-2 text-xs">
-            <span className="w-1/2 break-words pr-2">{item.itemName}</span>
-            <span className="w-1/4 text-right">{item.quantity}</span>
-            <span className="w-1/4 text-right">{formatMoney(item.totalPrice)}</span>
-          </div>
-        ))}
+        {(order.items || []).map((item, idx) => {
+          const isCancelled = item.itemStatus === 'cancelled';
+          return (
+            <div key={idx} className={`flex justify-between mb-2 text-xs ${isCancelled ? 'text-gray-400 line-through' : ''}`}>
+              <span className="w-1/2 break-words pr-2">
+                {item.itemName} {isCancelled && '(Hủy)'}
+              </span>
+              <span className="w-1/4 text-right">{item.quantity}</span>
+              <span className="w-1/4 text-right">
+                {isCancelled ? formatMoney(0) : formatMoney(item.totalPrice)}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Totals */}

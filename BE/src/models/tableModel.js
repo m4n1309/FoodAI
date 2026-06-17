@@ -37,7 +37,7 @@ const Table = (sequelize, DataTypes) => {
             [sequelize.Sequelize.Op.notIn]: ['completed', 'cancelled']
           }
         },
-        order: [['createdAt', 'DESC']]
+        order: [['created_at', 'DESC']]
       });
     }
   }

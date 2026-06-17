@@ -149,3 +149,4 @@ const startServer = async () => {
 };
 
 startServer();
+// Trigger nodemon restart to reload .env configuration

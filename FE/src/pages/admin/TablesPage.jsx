@@ -255,14 +255,15 @@ const TablesPage = () => {
             </div>
           </div>
 
-          {/* Add button */}
-          <button
-            onClick={() => handleOpenModal()}
-            className="btn-primary flex items-center justify-center lg:justify-start"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Thêm bàn ăn
-          </button>
+          {user?.role !== 'waiter' && (
+            <button
+              onClick={() => handleOpenModal()}
+              className="btn-primary flex items-center justify-center lg:justify-start"
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Thêm bàn ăn
+            </button>
+          )}
         </div>
 
         {/* Filters */}
@@ -386,29 +387,31 @@ const TablesPage = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex items-center space-x-2 pt-3 border-t border-gray-200">
-                <button
-                  onClick={() => handleOpenModal(table)}
-                  className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                  title="Chỉnh sửa"
-                >
-                  <PencilIcon className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleRegenerateQRCode(table)}
-                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Tạo lại mã QR"
-                >
-                  <ArrowPathIcon className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleOpenDeleteDialog(table)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-auto"
-                  title="Xóa"
-                >
-                  <TrashIcon className="h-4 w-4" />
-                </button>
-              </div>
+              {user?.role !== 'waiter' && (
+                <div className="flex items-center space-x-2 pt-3 border-t border-gray-200">
+                  <button
+                    onClick={() => handleOpenModal(table)}
+                    className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                    title="Chỉnh sửa"
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleRegenerateQRCode(table)}
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Tạo lại mã QR"
+                  >
+                    <ArrowPathIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleOpenDeleteDialog(table)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-auto"
+                    title="Xóa"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

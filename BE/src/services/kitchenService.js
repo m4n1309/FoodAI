@@ -27,7 +27,18 @@ const getActiveOrders = async ({ restaurantId }) => {
         },
         required: true, // Only fetch orders that actually have items needing kitchen attention
         include: [
-          { model: db.MenuItem, as: 'menuItem', required: false },
+          {
+            model: db.MenuItem,
+            as: 'menuItem',
+            required: false,
+            include: [
+              {
+                model: db.Category,
+                as: 'category',
+                required: false
+              }
+            ]
+          },
           { model: db.Combo, as: 'combo', required: false }
         ]
       }
@@ -64,21 +75,37 @@ const updateItemStatus = async ({ itemId, restaurantId, status, staffId }) => {
   const orderId = orderItem.orderId;
   const order = orderItem.order;
 
+  // Recalculate order total if status is 'cancelled'
+  if (status === 'cancelled') {
+    try {
+      await db.sequelize.query(
+        'CALL sp_calculate_order_total(:orderId)',
+        { replacements: { orderId } }
+      );
+    } catch (err) {
+      console.error('sp_calculate_order_total failed on item cancellation:', err);
+    }
+  }
+
   // Auto update Order Status based on Items
   const allItems = await db.OrderItem.findAll({ where: { orderId } });
   
   const hasPreparing = allItems.some(i => i.itemStatus === 'preparing');
   const allReadyOrServed = allItems.every(i => ['ready', 'served', 'cancelled'].includes(i.itemStatus));
-  // Not counting cancelled items towards "not ready". If all items are cancelled, wait, that's an edge case.
   const hasActiveItems = allItems.some(i => i.itemStatus !== 'cancelled');
 
   let newOrderStatus = order.orderStatus;
+  let cancelledReason = undefined;
+
   if (hasActiveItems) {
     if (allReadyOrServed && ['pending', 'confirmed', 'preparing'].includes(order.orderStatus)) {
       newOrderStatus = 'ready'; // All items are ready
     } else if (status === 'preparing' && ['pending', 'confirmed'].includes(order.orderStatus)) {
       newOrderStatus = 'preparing'; // Someone started preparing at least one item
     }
+  } else {
+    newOrderStatus = 'cancelled';
+    cancelledReason = 'Tất cả món ăn đã bị hủy bởi nhà bếp';
   }
 
   if (newOrderStatus !== order.orderStatus) {
@@ -86,6 +113,7 @@ const updateItemStatus = async ({ itemId, restaurantId, status, staffId }) => {
       id: orderId,
       restaurantId,
       status: newOrderStatus,
+      cancelledReason,
       staffId
     });
   }

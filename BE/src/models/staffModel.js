@@ -75,7 +75,7 @@ const Staff = (sequelize, DataTypes) => {
       allowNull: true
     },
     role: {
-      type: DataTypes.ENUM('admin', 'manager', 'waiter', 'kitchen', 'cashier'),
+      type: DataTypes.ENUM('admin', 'waiter', 'kitchen'),
       allowNull: false
     },
     avatarUrl: {

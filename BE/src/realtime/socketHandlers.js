@@ -19,7 +19,9 @@ export const initSocketHandlers = (io) => {
           return;
         }
 
-        if (order.sessionId !== sessionId) {
+        // Chỉ chặn nếu đơn còn đang ở trạng thái 'cart' (giỏ hàng riêng tư).
+        // Nếu đơn đã được gửi (pending, confirmed...), cho phép mọi phiên tại bàn tham gia để theo dõi trạng thái.
+        if (order.orderStatus === 'cart' && order.sessionId !== sessionId) {
           socket.emit('join_order_error', { message: 'Forbidden: session mismatch' });
           return;
         }
@@ -82,6 +84,33 @@ export const initSocketHandlers = (io) => {
     socket.on('leave_table', ({ tableId }) => {
        if (!tableId) return;
        socket.leave(`table:${tableId}`);
+    });
+
+    // customer calls waiter/staff
+    socket.on('call_waiter', async ({ restaurantId, tableId, tableNumber }) => {
+      try {
+        if (!restaurantId || !tableId) return;
+
+        // Broadcast to restaurant room
+        io.to(`restaurant:${restaurantId}`).emit('waiter_call', {
+          tableId,
+          tableNumber: tableNumber || 'N/A',
+          restaurantId,
+          timestamp: new Date()
+        });
+
+        // Save DB notification
+        await db.Notification.create({
+          restaurantId,
+          notificationType: 'waiter_call',
+          title: 'Gọi phục vụ',
+          message: `Bàn ${tableNumber || 'N/A'} đang gọi phục vụ.`,
+          recipientType: 'staff',
+          isRead: false
+        });
+      } catch (err) {
+        console.error('Error in call_waiter socket event:', err);
+      }
     });
   });
 };
