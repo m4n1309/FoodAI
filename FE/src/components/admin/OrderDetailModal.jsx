@@ -30,7 +30,8 @@ const OrderDetailModal = ({ isOpen, onClose, order, onUpdateStatus, loading }) =
       setPayMethod('');
       loadPayments();
     }
-  }, [isOpen, order]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, order?.id]);
 
   // Sync payAmount with remaining after loading payments
   useEffect(() => {
@@ -39,7 +40,8 @@ const OrderDetailModal = ({ isOpen, onClose, order, onUpdateStatus, loading }) =
       const remaining = Math.max(0, Number(order.totalAmount) - currentTotalPaid);
       setPayAmount(remaining);
     }
-  }, [isOpen, order, payments]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, order?.id, order?.totalAmount, payments]);
 
   // Listen for socket payment updates
   useEffect(() => {
