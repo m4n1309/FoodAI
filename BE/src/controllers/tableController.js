@@ -28,8 +28,8 @@ const resolveFrontendBaseUrl = (req) => {
 };
 
 const resolveScanRedirectPath = () => {
-  const configured = String(process.env.QR_SCAN_REDIRECT_PATH || '/customer/menu').trim();
-  if (!configured) return '/customer/menu';
+  const configured = String(process.env.QR_SCAN_REDIRECT_PATH || '/customer').trim();
+  if (!configured) return '/customer';
 
   const withLeadingSlash = configured.startsWith('/') ? configured : `/${configured}`;
   return withLeadingSlash.replace(/\/$/, '');
