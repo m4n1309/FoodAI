@@ -18,7 +18,8 @@ const customerService = {
   getAvailablePromotions: (restaurantId) => httpClient.get(`/promotions/public/${restaurantId}`),
   chatbotQuery: (payload) => httpClient.post('/customer/chatbot/query', payload),
   addItemToActiveOrder: (payload) => httpClient.post('/customer/orders/active/items', payload),
-  requestPayment: (orderId) => httpClient.post(`/customer/orders/${orderId}/request-payment`)
+  requestPayment: (orderId) => httpClient.post(`/customer/orders/${orderId}/request-payment`),
+  getOrderHistory: (phone) => httpClient.get('/customer/orders/history', { params: { phone } })
 };
 
 export default customerService;

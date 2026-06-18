@@ -168,17 +168,34 @@ const CustomerMenuPage = () => {
         restaurantId: bootData.table.restaurantId,
         tableId: bootData.table.id
       });
-      const currentCart = cartRes.data.cart;
-      setCart(currentCart);
+      let currentCart = cartRes.data.cart;
       
-      const savedCustomer = sessionStorage.getItem('foodai_customer');
-      if (currentCart.customerId && !savedCustomer) {
-        sessionStorage.setItem('foodai_customer', JSON.stringify({
+      const savedCustomer = localStorage.getItem('foodai_customer');
+      if (savedCustomer) {
+        const parsed = JSON.parse(savedCustomer);
+        // If the cart doesn't have a customer linked, auto check-in in background
+        if (!currentCart.customerId && parsed.phone) {
+          try {
+            await customerApi.checkIn({ phone: parsed.phone, fullName: parsed.fullName });
+            // Re-fetch cart to get it with customer details linked
+            const refreshedCartRes = await customerApi.getCart({
+              restaurantId: bootData.table.restaurantId,
+              tableId: bootData.table.id
+            });
+            currentCart = refreshedCartRes.data.cart;
+          } catch (err) {
+            console.error('Auto check-in failed:', err);
+          }
+        }
+      } else if (currentCart.customerId) {
+        localStorage.setItem('foodai_customer', JSON.stringify({
           id: currentCart.customerId,
           fullName: currentCart.customerName,
           phone: currentCart.customerPhone
         }));
       }
+
+      setCart(currentCart);
 
       // Fetch active order if table has one
       if (bootData.currentOrder) {

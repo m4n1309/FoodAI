@@ -60,4 +60,52 @@ const checkIn = async (req, res) => {
   }
 };
 
-export default { bootstrap, checkIn };
+const getOrderHistory = async (req, res) => {
+  try {
+    const { phone } = req.query;
+    if (!phone) {
+      return errorResponse(res, 'Phone number is required', StatusCodes.BAD_REQUEST);
+    }
+
+    const customer = await db.Customer.findOne({ where: { phone } });
+    if (!customer) {
+      return successResponse(res, { customer: null, orders: [] }, 'No customer profile found');
+    }
+
+    const orders = await db.Order.findAll({
+      where: {
+        customerId: customer.id,
+        orderStatus: { [db.Sequelize.Op.ne]: 'cart' }
+      },
+      include: [
+        { model: db.Table, as: 'table' },
+        {
+          model: db.OrderItem,
+          as: 'items',
+          include: [
+            { model: db.MenuItem, as: 'menuItem', required: false },
+            { model: db.Combo, as: 'combo', required: false }
+          ]
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    return successResponse(res, {
+      customer: {
+        id: customer.id,
+        fullName: customer.fullName,
+        phone: customer.phone,
+        loyaltyPoints: customer.loyaltyPoints,
+        totalOrders: customer.totalOrders,
+        totalSpent: customer.totalSpent
+      },
+      orders
+    }, 'Order history retrieved successfully');
+  } catch (err) {
+    console.error('Error fetching order history:', err);
+    return errorResponse(res, 'Failed to fetch order history', StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export default { bootstrap, checkIn, getOrderHistory };

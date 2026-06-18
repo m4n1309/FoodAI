@@ -11,6 +11,8 @@ import {
   UserPlusIcon, 
   SparklesIcon 
 } from '@heroicons/react/24/outline';
+import CheckInModal from '../../components/customer/CheckInModal';
+import OrderHistoryModal from '../../components/customer/OrderHistoryModal';
 
 const CustomerHomePage = () => {
   const { qrCode } = useParams();
@@ -21,6 +23,10 @@ const CustomerHomePage = () => {
   const [loading, setLoading] = useState(true);
   const [bootstrap, setBootstrap] = useState(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
+  const [customer, setCustomer] = useState(null);
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [checkInLoading, setCheckInLoading] = useState(false);
 
   const effectiveQrCode = useMemo(() => {
     if (qrCode) return qrCode;
@@ -39,7 +45,34 @@ const CustomerHomePage = () => {
         return;
       }
       const res = await customerApi.bootstrap(effectiveQrCode);
-      setBootstrap(res.data);
+      const bootData = res.data;
+      setBootstrap(bootData);
+
+      // Auto check-in if customer details exist in localStorage
+      const savedCustomer = localStorage.getItem('foodai_customer');
+      if (savedCustomer) {
+        const parsed = JSON.parse(savedCustomer);
+        setCustomer(parsed);
+        if (parsed.phone) {
+          try {
+            const checkInRes = await customerApi.checkIn({
+              phone: parsed.phone,
+              fullName: parsed.fullName
+            });
+            // Update saved data with database customer details (includes id)
+            const updatedCustomer = {
+              id: checkInRes.data?.id || parsed.id,
+              fullName: checkInRes.data?.fullName || parsed.fullName,
+              phone: checkInRes.data?.phone || parsed.phone,
+              loyaltyPoints: checkInRes.data?.loyaltyPoints || 0
+            };
+            localStorage.setItem('foodai_customer', JSON.stringify(updatedCustomer));
+            setCustomer(updatedCustomer);
+          } catch (err) {
+            console.error('Auto check-in failed on home load:', err);
+          }
+        }
+      }
     } catch (err) {
       toast.error('Không thể tải thông tin bàn ăn.');
     } finally {
@@ -50,6 +83,35 @@ const CustomerHomePage = () => {
   useEffect(() => {
     loadBootstrap();
   }, [loadBootstrap]);
+
+  const handleCheckInSubmit = async ({ phone, fullName }) => {
+    try {
+      setCheckInLoading(true);
+      const res = await customerApi.checkIn({ phone, fullName });
+      const customerData = {
+        id: res.data.id,
+        fullName: res.data.fullName,
+        phone: res.data.phone,
+        loyaltyPoints: res.data.loyaltyPoints || 0
+      };
+      localStorage.setItem('foodai_customer', JSON.stringify(customerData));
+      setCustomer(customerData);
+      setCheckInOpen(false);
+      toast.success(`Chào mừng ${customerData.fullName}! Tích điểm thành công. 🎉`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Đăng ký thành viên thất bại');
+    } finally {
+      setCheckInLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('foodai_customer');
+    setCustomer(null);
+    setHistoryOpen(false);
+    toast.success('Đã đăng xuất tài khoản tích điểm');
+  };
 
   // Handle calling waiter
   const handleCallWaiter = () => {
@@ -171,17 +233,17 @@ const CustomerHomePage = () => {
           </button>
         </div>
 
-        {/* Future Expansion Divider */}
+        {/* Expansion Divider */}
         <div className="pt-4">
           <div className="flex items-center gap-3 mb-4">
             <span className="h-px bg-gray-200 flex-1"></span>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Dịch vụ sắp ra mắt</span>
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Dịch vụ bổ sung</span>
             <span className="h-px bg-gray-200 flex-1"></span>
           </div>
 
-          {/* Placeholder Grid */}
+          {/* Grid */}
           <div className="grid grid-cols-3 gap-3">
-            {/* Future Card 1: Payment */}
+            {/* Card 1: Payment */}
             <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/60 border border-gray-100 shadow-sm opacity-50 relative group">
               <div className="p-2.5 rounded-xl bg-gray-100 text-gray-500 mb-2">
                 <CreditCardIcon className="w-6 h-6" />
@@ -190,7 +252,7 @@ const CustomerHomePage = () => {
               <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gray-700 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full leading-none">Sắp có</span>
             </div>
 
-            {/* Future Card 2: Feedback */}
+            {/* Card 2: Feedback */}
             <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/60 border border-gray-100 shadow-sm opacity-50 relative group">
               <div className="p-2.5 rounded-xl bg-gray-100 text-gray-500 mb-2">
                 <ChatBubbleLeftRightIcon className="w-6 h-6" />
@@ -199,17 +261,44 @@ const CustomerHomePage = () => {
               <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gray-700 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full leading-none">Sắp có</span>
             </div>
 
-            {/* Future Card 3: Membership */}
-            <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/60 border border-gray-100 shadow-sm opacity-50 relative group">
-              <div className="p-2.5 rounded-xl bg-gray-100 text-gray-500 mb-2">
+            {/* Card 3: Membership / History */}
+            <button
+              onClick={() => {
+                if (customer) {
+                  setHistoryOpen(true);
+                } else {
+                  setCheckInOpen(true);
+                }
+              }}
+              className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white border border-orange-100 shadow-sm hover:shadow-md transition-all active:scale-95 text-center group w-full"
+            >
+              <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 mb-2 group-hover:scale-110 transition-transform">
                 <UserPlusIcon className="w-6 h-6" />
               </div>
-              <span className="text-[10px] font-black text-gray-800 text-center leading-tight">Thành Viên</span>
-              <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gray-700 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full leading-none">Sắp có</span>
-            </div>
+              <span className="text-[10px] font-black text-gray-800 leading-tight">Thành Viên</span>
+              {customer ? (
+                <span className="text-[8px] font-bold text-indigo-600 mt-1 line-clamp-1">{customer.fullName}</span>
+              ) : (
+                <span className="text-[8px] font-medium text-gray-400 mt-1">Tích điểm</span>
+              )}
+            </button>
           </div>
         </div>
       </div>
+
+      <CheckInModal
+        open={checkInOpen}
+        onSkip={() => setCheckInOpen(false)}
+        onSubmit={handleCheckInSubmit}
+        loading={checkInLoading}
+      />
+
+      <OrderHistoryModal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        phone={customer?.phone}
+        onLogout={handleLogout}
+      />
     </div>
   );
 };

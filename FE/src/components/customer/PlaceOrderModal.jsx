@@ -57,7 +57,7 @@ const PlaceOrderModal = ({ open, onClose, cart, onSuccess, onUpdateQty, onUpdate
       setPromoError('');
     } else {
       try {
-        const savedData = sessionStorage.getItem('foodai_customer');
+        const savedData = localStorage.getItem('foodai_customer');
         if (savedData) {
           const parsed = JSON.parse(savedData);
           if (parsed.id) setCustomerId(parsed.id);
@@ -129,7 +129,7 @@ const PlaceOrderModal = ({ open, onClose, cart, onSuccess, onUpdateQty, onUpdate
       toast.success('Đặt món thành công! 🎉');
       
       if (customerPhone.trim()) {
-        sessionStorage.setItem('foodai_customer', JSON.stringify({
+        localStorage.setItem('foodai_customer', JSON.stringify({
           id: res.data.order?.customerId || customerId,
           fullName: customerName.trim(),
           phone: customerPhone.trim()

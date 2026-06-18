@@ -21,6 +21,7 @@ router.delete('/cart/items/:id', requireCustomerSession, customerCartController.
 
 // ✅ Place order (cart → pending)
 router.get('/orders/active', requireCustomerSession, customerCartController.getActiveOrder);
+router.get('/orders/history', requireCustomerSession, customerController.getOrderHistory);
 router.post('/orders', requireCustomerSession, customerCartController.placeOrder);
 
 // ✅ Add items to active order (no new cart)
