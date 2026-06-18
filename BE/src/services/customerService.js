@@ -23,7 +23,7 @@ const bootstrap = async ({ qrCode, sessionId, isNewSession }) => {
     include: [{
       model: db.Restaurant,
       as: 'restaurant',
-      attributes: ['id', 'name', 'slug', 'isActive', 'logoUrl', 'bannerUrl', 'address', 'phone']
+      attributes: ['id', 'name', 'slug', 'isActive', 'logoUrl', 'address', 'phone']
     }]
   });
 
