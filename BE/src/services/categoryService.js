@@ -2,6 +2,7 @@ import db from '../models/index.js';
 import { Op } from 'sequelize';
 import { StatusCodes } from 'http-status-codes';
 import { ServiceError } from './serviceError.js';
+import { deleteCache } from '../config/redis.js';
 
 const generateSlug = (name) => {
   return name
@@ -124,7 +125,7 @@ const createCategory = async ({ body, staff }) => {
     where: { restaurantId }
   });
 
-  return db.Category.create({
+  const category = await db.Category.create({
     restaurantId,
     name,
     slug: generateSlug(name),
@@ -132,6 +133,9 @@ const createCategory = async ({ body, staff }) => {
     imageUrl,
     displayOrder: (maxOrder || 0) + 1
   });
+
+  await deleteCache(`restaurant:data:${restaurantId}`);
+  return category;
 };
 
 const updateCategory = async ({ id, body, staffRestaurantId }) => {
@@ -171,6 +175,7 @@ const updateCategory = async ({ id, body, staffRestaurantId }) => {
   if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
 
   await category.update(updateData);
+  await deleteCache(`restaurant:data:${category.restaurantId}`);
   return category;
 };
 
@@ -198,6 +203,7 @@ const deleteCategory = async ({ id, staffRestaurantId }) => {
   }
 
   await category.destroy();
+  await deleteCache(`restaurant:data:${category.restaurantId}`);
 };
 
 const toggleCategoryStatus = async ({ id, staffRestaurantId }) => {
@@ -216,6 +222,7 @@ const toggleCategoryStatus = async ({ id, staffRestaurantId }) => {
     isActive: !category.isActive
   });
 
+  await deleteCache(`restaurant:data:${category.restaurantId}`);
   return category;
 };
 
@@ -243,6 +250,7 @@ const reorderCategories = async ({ categoryIds, staffRestaurantId }) => {
   });
 
   await Promise.all(updatePromises);
+  await deleteCache(`restaurant:data:${staffRestaurantId}`);
 };
 
 export default {

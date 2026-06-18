@@ -12,6 +12,8 @@ import {
 } from '../utils/qrCodeHelper.js';
 import { StatusCodes } from 'http-status-codes';
 import { ServiceError } from './serviceError.js';
+import s3Client, { getMinioPublicUrl } from '../config/minio.js';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,20 +43,33 @@ const resolveBackendBaseUrl = ({ requestHost } = {}) => {
 
 const getQRCodeFilename = (table) => `table-${table.restaurantId}-${table.tableNumber}-qr.png`;
 
-const getQRCodePublicUrl = (table, requestHost) => `${resolveBackendBaseUrl({ requestHost })}/qrcodes/${getQRCodeFilename(table)}`;
+const getQRCodePublicUrl = (table, requestHost) => {
+  return getMinioPublicUrl('qrcodes', getQRCodeFilename(table));
+};
 
 const saveQRCodeImage = async (table, qrToken, requestHost) => {
   const scanUrl = generateQRScanURL(qrToken, resolveBackendBaseUrl({ requestHost }));
-  const uploadsDir = qrCodeStorageDir;
-
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-
   const filename = getQRCodeFilename(table);
-  const filepath = path.join(uploadsDir, filename);
   const qrCodeBuffer = await generateQRCodeBuffer(scanUrl);
-  fs.writeFileSync(filepath, qrCodeBuffer);
+
+  try {
+    // Upload buffer to MinIO qrcodes bucket
+    await s3Client.send(new PutObjectCommand({
+      Bucket: 'qrcodes',
+      Key: filename,
+      Body: qrCodeBuffer,
+      ContentType: 'image/png'
+    }));
+    console.log(`Successfully uploaded QR code for table ${table.tableNumber} to MinIO`);
+  } catch (err) {
+    console.error(`Failed to upload QR code to MinIO, fallback to local file system:`, err.message);
+    // Fallback to local write
+    if (!fs.existsSync(qrCodeStorageDir)) {
+      fs.mkdirSync(qrCodeStorageDir, { recursive: true });
+    }
+    const filepath = path.join(qrCodeStorageDir, filename);
+    fs.writeFileSync(filepath, qrCodeBuffer);
+  }
 
   return {
     filename,

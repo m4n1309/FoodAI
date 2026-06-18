@@ -2,6 +2,7 @@ import { Op } from 'sequelize';
 import db from '../models/index.js';
 import { StatusCodes } from 'http-status-codes';
 import { ServiceError } from './serviceError.js';
+import { deleteCache } from '../config/redis.js';
 
 const generateSlug = (name) => {
   return name
@@ -213,6 +214,8 @@ const createMenuItem = async ({ body, staffRestaurantId }) => {
     displayOrder: (maxOrder || 0) + 1
   });
 
+  await deleteCache(`restaurant:data:${restaurantId}`);
+
   return db.MenuItem.findByPk(menuItem.id, {
     include: [{
       model: db.Category,
@@ -269,6 +272,8 @@ const updateMenuItem = async ({ id, updateData, staffRestaurantId }) => {
 
   await menuItem.update(payload);
 
+  await deleteCache(`restaurant:data:${menuItem.restaurantId}`);
+
   return db.MenuItem.findByPk(menuItem.id, {
     include: [{
       model: db.Category,
@@ -291,6 +296,7 @@ const deleteMenuItem = async ({ id, staffRestaurantId }) => {
   );
 
   await menuItem.destroy();
+  await deleteCache(`restaurant:data:${menuItem.restaurantId}`);
 };
 
 const toggleMenuItemAvailability = async ({ id, staffRestaurantId }) => {
@@ -306,6 +312,7 @@ const toggleMenuItemAvailability = async ({ id, staffRestaurantId }) => {
   );
 
   await menuItem.update({ isAvailable: !menuItem.isAvailable });
+  await deleteCache(`restaurant:data:${menuItem.restaurantId}`);
   return menuItem;
 };
 
@@ -322,6 +329,7 @@ const toggleMenuItemFeatured = async ({ id, staffRestaurantId }) => {
   );
 
   await menuItem.update({ isFeatured: !menuItem.isFeatured });
+  await deleteCache(`restaurant:data:${menuItem.restaurantId}`);
   return menuItem;
 };
 

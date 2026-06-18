@@ -4,16 +4,20 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useForm } from 'react-hook-form';
 import categoryApi from '../../services/categoryService.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import httpClient from '../../services/httpClient.js';
 
 const MenuItemModal = ({ isOpen, onClose, menuItem, onSubmit, loading }) => {
   const { user } = useAuth();
   const isEdit = !!menuItem;
   const [categories, setCategories] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     watch,
     formState: { errors },
   } = useForm({
@@ -35,6 +39,7 @@ const MenuItemModal = ({ isOpen, onClose, menuItem, onSubmit, loading }) => {
 
   const price = watch('price');
   const discountPrice = watch('discountPrice');
+  const watchImageUrl = watch('imageUrl');
 
   // Fetch categories
   useEffect(() => {
@@ -88,7 +93,33 @@ const MenuItemModal = ({ isOpen, onClose, menuItem, onSubmit, loading }) => {
         isSpicy: false,
       });
     }
+    setUploadError(null);
   }, [menuItem, reset]);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError(null);
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const response = await httpClient.post('/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      setValue('imageUrl', response.url);
+    } catch (err) {
+      console.error('Failed to upload image:', err);
+      setUploadError(err.response?.data?.message || 'Không thể tải ảnh lên');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleFormSubmit = (data) => {
     // Convert numeric fields
@@ -320,23 +351,50 @@ const MenuItemModal = ({ isOpen, onClose, menuItem, onSubmit, loading }) => {
                     />
                   </div>
 
-                  {/* Image URL */}
+                  {/* Image URL & Upload */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      URL hình ảnh
+                      Hình ảnh món ăn
                     </label>
-                    <input
-                      type="url"
-                      {...register('imageUrl', {
-                        pattern: {
-                          value: /^https?:\/\/.+/,
-                          message: 'URL không hợp lệ',
-                        },
-                      })}
-                      className="input-field"
-                      placeholder="https://example.com/image.jpg"
-                      disabled={loading}
-                    />
+                    <div className="mt-1 flex items-center space-x-4">
+                      {watchImageUrl && (
+                        <img
+                          src={watchImageUrl}
+                          alt="Preview"
+                          className="h-16 w-16 object-cover rounded-md border border-gray-200"
+                        />
+                      )}
+                      <div className="flex-1 space-y-2">
+                        <input
+                          id="imageUrl"
+                          type="url"
+                          {...register('imageUrl', {
+                            pattern: {
+                              value: /^https?:\/\/.+/,
+                              message: 'URL không hợp lệ',
+                            },
+                          })}
+                          className="input-field"
+                          placeholder="https://example.com/image.jpg"
+                          disabled={loading || uploading}
+                        />
+                        <div className="flex items-center space-x-2">
+                          <label className={`btn-secondary text-xs cursor-pointer py-1.5 px-3 block text-center ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                            {uploading ? 'Đang tải lên...' : 'Tải ảnh từ máy'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleImageUpload}
+                              disabled={loading || uploading}
+                            />
+                          </label>
+                          {uploadError && (
+                            <span className="text-xs text-red-600">{uploadError}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                     {errors.imageUrl && (
                       <p className="mt-1 text-sm text-red-600">{errors.imageUrl.message}</p>
                     )}

@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.js';
 import { roleCheck } from '../middleware/roleCheck.js';
 import validationMiddleware from '../middleware/validationMiddleware.js';
 import reviewController from '../controllers/reviewController.js';
+import { rateLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -12,6 +13,7 @@ router.get('/restaurant/:restaurantId', reviewController.getRestaurantReviews);
 router.get('/menu-item/:menuItemId', reviewController.getMenuItemReviews);
 
 router.post('/menu-item', 
+  rateLimiter({ max: 5, windowMs: 60000, message: 'Đánh giá quá nhanh. Vui lòng đợi 1 phút.' }),
   [
     body('menuItemId').notEmpty().withMessage('Menu Item ID is required'),
     body('rating').isInt({ min: 1, max: 5 }).withMessage('Rating must be between 1 and 5')
@@ -21,6 +23,7 @@ router.post('/menu-item',
 );
 
 router.post('/',
+  rateLimiter({ max: 5, windowMs: 60000, message: 'Đánh giá quá nhanh. Vui lòng đợi 1 phút.' }),
   [
     body('restaurantId').notEmpty().withMessage('Restaurant ID is required'),
     body('rating').isInt({ min: 1, max: 5 }).withMessage('Rating must be between 1 and 5')

@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { successResponse, errorResponse, notFoundResponse } from '../utils/ResponseHelper.js';
 import db from '../models/index.js';
+import { deleteCache } from '../config/redis.js';
 
 // --- CUSTOMER ENDPOINTS ---
 
@@ -70,6 +71,8 @@ export const createReview = async (req, res) => {
       isPublished: true // Default to true, or wait for admin approval if needed
     });
 
+    await deleteCache(`restaurant:data:${restaurantId}`);
+
     return successResponse(res, review, 'Review submitted successfully', StatusCodes.CREATED);
   } catch (error) {
     console.error(error);
@@ -107,6 +110,11 @@ export const createMenuItemReview = async (req, res) => {
       rating,
       comment
     });
+
+    const menuItem = await db.MenuItem.findByPk(menuItemId);
+    if (menuItem) {
+      await deleteCache(`restaurant:data:${menuItem.restaurantId}`);
+    }
 
     return successResponse(res, itemReview, 'Menu item review submitted successfully', StatusCodes.CREATED);
   } catch (error) {

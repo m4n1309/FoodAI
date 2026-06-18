@@ -79,10 +79,21 @@ services:
       - SEPAY_WEBHOOK_TOKEN=${SEPAY_WEBHOOK_TOKEN}
       - SEPAY_ACCOUNT_NO=${SEPAY_ACCOUNT_NO}
       - SEPAY_BANK=${SEPAY_BANK}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadminpassword}
+      - MINIO_EXTERNAL_URL=${MINIO_EXTERNAL_URL:-http://localhost:9000}
     depends_on:
       db:
         condition: service_healthy
       python-rag:
+        condition: service_started
+      redis:
+        condition: service_started
+      minio:
         condition: service_started
     networks:
       - foodai-network
@@ -106,8 +117,39 @@ services:
     networks:
       - foodai-network
 
+  # 5. Redis Database Service
+  redis:
+    image: redis:7.0-alpine
+    container_name: foodai-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - foodai-network
+
+  # 6. MinIO Object Storage Service
+  minio:
+    image: minio/minio:RELEASE.2023-09-07T01-16-47Z
+    container_name: foodai-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadminpassword}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - foodai-network
+
 volumes:
   db_data:
+  redis_data:
+  minio_data:
 
 networks:
   foodai-network:

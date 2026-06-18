@@ -88,12 +88,23 @@ services:
       - SEPAY_WEBHOOK_TOKEN=${SEPAY_WEBHOOK_TOKEN}
       - SEPAY_ACCOUNT_NO=${SEPAY_ACCOUNT_NO}
       - SEPAY_BANK=${SEPAY_BANK}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_EXTERNAL_URL=${MINIO_EXTERNAL_URL}
     volumes:
       - qrcodes_data_prod:/usr/src/app/public/qrcodes
     depends_on:
       db:
         condition: service_healthy
       python-rag:
+        condition: service_started
+      redis:
+        condition: service_started
+      minio:
         condition: service_started
     logging:
       driver: "json-file"
@@ -132,9 +143,48 @@ services:
     networks:
       - foodai-prod-network
 
+  # 5. Redis Database Service
+  redis:
+    image: redis:7.0-alpine
+    container_name: foodai-redis-prod
+    restart: unless-stopped
+    volumes:
+      - redis_data_prod:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - foodai-prod-network
+
+  # 6. MinIO Object Storage Service
+  minio:
+    image: minio/minio:RELEASE.2023-09-07T01-16-47Z
+    container_name: foodai-minio-prod
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data_prod:/data
+    command: server /data --console-address ":9001"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - foodai-prod-network
+
 volumes:
   db_data_prod:
   qrcodes_data_prod:
+  redis_data_prod:
+  minio_data_prod:
 
 networks:
   foodai-prod-network:

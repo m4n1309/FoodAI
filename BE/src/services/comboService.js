@@ -2,6 +2,7 @@ import db from '../models/index.js';
 import { StatusCodes } from 'http-status-codes';
 import { ServiceError } from './serviceError.js';
 import { Op } from 'sequelize';
+import { deleteCache } from '../config/redis.js';
 
 const generateSlug = (name) => {
   return name
@@ -90,6 +91,8 @@ const createCombo = async ({ body, staffRestaurantId }) => {
       await db.ComboItem.bulkCreate(comboItems, { transaction: t });
     }
 
+    await deleteCache(`restaurant:data:${restaurantId}`);
+
     return await db.Combo.findByPk(combo.id, {
       include: [{
         model: db.ComboItem,
@@ -136,6 +139,8 @@ const updateCombo = async ({ id, body, staffRestaurantId }) => {
       await db.ComboItem.bulkCreate(comboItems, { transaction: t });
     }
 
+    await deleteCache(`restaurant:data:${combo.restaurantId}`);
+
     return await db.Combo.findByPk(id, {
       include: [{
         model: db.ComboItem,
@@ -159,6 +164,7 @@ const deleteCombo = async ({ id, staffRestaurantId }) => {
   return await db.sequelize.transaction(async (t) => {
     await db.ComboItem.destroy({ where: { comboId: id }, transaction: t });
     await combo.destroy({ transaction: t });
+    await deleteCache(`restaurant:data:${combo.restaurantId}`);
   });
 };
 
@@ -169,6 +175,7 @@ const toggleAvailability = async ({ id, staffRestaurantId }) => {
   ensureStaffRestaurantAccess(staffRestaurantId, combo.restaurantId, 'Access denied');
 
   await combo.update({ isAvailable: !combo.isAvailable });
+  await deleteCache(`restaurant:data:${combo.restaurantId}`);
   return combo;
 };
 

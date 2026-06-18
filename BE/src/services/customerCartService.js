@@ -2,6 +2,7 @@ import db from '../models/index.js';
 import { StatusCodes } from 'http-status-codes';
 import { ServiceError } from './serviceError.js';
 import { Op } from 'sequelize';
+import { getCache, setCache, deleteCache } from '../config/redis.js';
 
 const CART_IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
@@ -41,6 +42,7 @@ const isExpired = (order) => {
 
 const cancelExpiredCart = async (order) => {
   await order.update({ orderStatus: 'cancelled', cancelledReason: 'cart_expired' });
+  await deleteCache(`cart:items:${order.id}`);
 };
 
 const verifyTable = async (restaurantId, tableId) => {
@@ -56,7 +58,11 @@ const verifyTable = async (restaurantId, tableId) => {
 };
 
 const loadCartWithItems = async (cartId) => {
-  return db.Order.findByPk(cartId, {
+  const cacheKey = `cart:items:${cartId}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  const cart = await db.Order.findByPk(cartId, {
     include: [{
       model: db.OrderItem,
       as: 'items',
@@ -66,6 +72,11 @@ const loadCartWithItems = async (cartId) => {
       ]
     }]
   });
+
+  if (cart) {
+    await setCache(cacheKey, cart, 7200); // 2 hours matching CART_IDLE_TIMEOUT_MS
+  }
+  return cart;
 };
 
 const ensureCartOwnership = async ({ orderId, sessionId }) => {
@@ -242,6 +253,7 @@ const addItem = async ({ sessionId, orderId, itemType, menuItemId, comboId, quan
   }
 
   await cart.update({ updatedAt: new Date() });
+  await deleteCache(`cart:items:${cart.id}`);
   const cartFull = await loadCartWithItems(cart.id);
 
   return { sessionId, item, cart: cartFull };
@@ -277,6 +289,7 @@ const updateItem = async ({ sessionId, id, quantity, specialInstructions }) => {
   });
 
   await cart.update({ updatedAt: new Date() });
+  await deleteCache(`cart:items:${cart.id}`);
 
   const cartFull = await loadCartWithItems(cart.id);
   return { sessionId, item, cart: cartFull };
@@ -304,6 +317,7 @@ const removeItem = async ({ sessionId, id }) => {
 
   await item.destroy();
   await cart.update({ updatedAt: new Date() });
+  await deleteCache(`cart:items:${cart.id}`);
 
   const cartFull = await loadCartWithItems(cart.id);
   return { sessionId, cart: cartFull };
@@ -437,6 +451,8 @@ const placeOrder = async ({ sessionId, orderId, customerName, customerPhone, cus
         }, { transaction });
     }
   });
+
+  await deleteCache(`cart:items:${cart.id}`);
 
   const fullOrder = await db.Order.findByPk(cart.id, {
     include: [{

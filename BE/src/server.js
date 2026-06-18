@@ -12,6 +12,9 @@ dotenv.config();
 
 import sequelize from './config/database.js';
 import routes from './routes/index.js';
+import { initMinioBuckets } from './config/minio.js';
+import { redisClient, isConnected } from './config/redis.js';
+import { createAdapter } from '@socket.io/redis-adapter';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -125,6 +128,9 @@ const startServer = async () => {
       // Ignore if columns already exist
     }
 
+    // Initialize MinIO Buckets
+    await initMinioBuckets();
+
     // ✅ Create HTTP server
     const httpServer = http.createServer(app);
 
@@ -135,6 +141,18 @@ const startServer = async () => {
         credentials: true
       }
     });
+
+    if (isConnected && redisClient) {
+      try {
+        const pubClient = redisClient;
+        const subClient = redisClient.duplicate();
+        await subClient.connect();
+        io.adapter(createAdapter(pubClient, subClient));
+        console.log('Socket.io Redis adapter bound successfully');
+      } catch (adapterErr) {
+        console.error('Failed to bind Socket.io Redis adapter:', adapterErr.message);
+      }
+    }
 
     // expose io for controllers (simple approach)
     app.locals.io = io;

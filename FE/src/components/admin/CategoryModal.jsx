@@ -1,15 +1,20 @@
-import { Fragment, useEffect } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useForm } from 'react-hook-form';
+import httpClient from '../../services/httpClient.js';
 
 const CategoryModal = ({ isOpen, onClose, category, onSubmit, loading }) => {
   const isEdit = !!category;
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -18,6 +23,8 @@ const CategoryModal = ({ isOpen, onClose, category, onSubmit, loading }) => {
       imageUrl: '',
     },
   });
+
+  const watchImageUrl = watch('imageUrl');
 
   // Reset form when modal opens/closes or category changes
   useEffect(() => {
@@ -34,10 +41,36 @@ const CategoryModal = ({ isOpen, onClose, category, onSubmit, loading }) => {
         imageUrl: '',
       });
     }
+    setUploadError(null);
   }, [category, reset]);
 
   const handleFormSubmit = (data) => {
     onSubmit(data);
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError(null);
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const response = await httpClient.post('/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      setValue('imageUrl', response.url);
+    } catch (err) {
+      console.error('Failed to upload image:', err);
+      setUploadError(err.response?.data?.message || 'Không thể tải ảnh lên');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -121,30 +154,53 @@ const CategoryModal = ({ isOpen, onClose, category, onSubmit, loading }) => {
                     />
                   </div>
 
-                  {/* Image URL */}
+                  {/* Image URL & Upload */}
                   <div>
-                    <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">
-                      URL hình ảnh
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hình ảnh danh mục
                     </label>
-                    <input
-                      id="imageUrl"
-                      type="url"
-                      {...register('imageUrl', {
-                        pattern: {
-                          value: /^https?:\/\/.+/,
-                          message: 'URL không hợp lệ',
-                        },
-                      })}
-                      className="input-field"
-                      placeholder="https://example.com/image.jpg"
-                      disabled={loading}
-                    />
+                    <div className="mt-1 flex items-center space-x-4">
+                      {watchImageUrl && (
+                        <img
+                          src={watchImageUrl}
+                          alt="Preview"
+                          className="h-16 w-16 object-cover rounded-md border border-gray-200"
+                        />
+                      )}
+                      <div className="flex-1 space-y-2">
+                        <input
+                          id="imageUrl"
+                          type="url"
+                          {...register('imageUrl', {
+                            pattern: {
+                              value: /^https?:\/\/.+/,
+                              message: 'URL không hợp lệ',
+                            },
+                          })}
+                          className="input-field"
+                          placeholder="https://example.com/image.jpg"
+                          disabled={loading || uploading}
+                        />
+                        <div className="flex items-center space-x-2">
+                          <label className={`btn-secondary text-xs cursor-pointer py-1.5 px-3 block text-center ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                            {uploading ? 'Đang tải lên...' : 'Tải ảnh từ máy'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleImageUpload}
+                              disabled={loading || uploading}
+                            />
+                          </label>
+                          {uploadError && (
+                            <span className="text-xs text-red-600">{uploadError}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                     {errors.imageUrl && (
                       <p className="mt-1 text-sm text-red-600">{errors.imageUrl.message}</p>
                     )}
-                    <p className="mt-1 text-xs text-gray-500">
-                      Để trống nếu chưa có hình ảnh
-                    </p>
                   </div>
 
                   {/* Buttons */}
