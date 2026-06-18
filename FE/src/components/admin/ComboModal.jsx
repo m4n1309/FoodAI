@@ -3,6 +3,7 @@ import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import PropTypes from 'prop-types';
 import menuItemApi from '../../services/menuItemService.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import httpClient from '../../services/httpClient.js';
 
 const ComboModal = ({ isOpen, onClose, combo, onSubmit, loading }) => {
   const { user } = useAuth();
@@ -18,6 +19,8 @@ const ComboModal = ({ isOpen, onClose, combo, onSubmit, loading }) => {
 
   const [allMenuItems, setAllMenuItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
 
   const fetchAllMenuItems = useCallback(async () => {
     try {
@@ -56,8 +59,37 @@ const ComboModal = ({ isOpen, onClose, combo, onSubmit, loading }) => {
         });
       }
       fetchAllMenuItems();
+      setUploadError(null);
     }
   }, [isOpen, combo, fetchAllMenuItems]);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError(null);
+
+    const data = new FormData();
+    data.append('image', file);
+
+    try {
+      const response = await httpClient.post('/upload', data, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: response.url
+      }));
+    } catch (err) {
+      console.error('Failed to upload combo image:', err);
+      setUploadError(err.response?.data?.message || 'Không thể tải ảnh lên');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -161,13 +193,40 @@ const ComboModal = ({ isOpen, onClose, combo, onSubmit, loading }) => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 font-bold mb-1">Ảnh (URL)</label>
-                    <input
-                      type="text" name="imageUrl"
-                      value={formData.imageUrl} onChange={handleChange}
-                      className="input-field"
-                      placeholder="https://example.com/image.jpg"
-                    />
+                    <label className="block text-sm font-medium text-gray-700 font-bold mb-1">Hình ảnh Combo</label>
+                    <div className="mt-1 flex items-center space-x-4">
+                      {formData.imageUrl && (
+                        <img
+                          src={formData.imageUrl}
+                          alt="Preview"
+                          className="h-16 w-16 object-cover rounded-md border border-gray-200"
+                        />
+                      )}
+                      <div className="flex-1 space-y-2">
+                        <input
+                          type="text" name="imageUrl"
+                          value={formData.imageUrl} onChange={handleChange}
+                          className="input-field"
+                          placeholder="https://example.com/image.jpg"
+                          disabled={loading || uploading}
+                        />
+                        <div className="flex items-center space-x-2">
+                          <label className={`btn-secondary text-xs cursor-pointer py-1.5 px-3 block text-center ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                            {uploading ? 'Đang tải lên...' : 'Tải ảnh từ máy'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleImageUpload}
+                              disabled={loading || uploading}
+                            />
+                          </label>
+                          {uploadError && (
+                            <span className="text-xs text-red-600">{uploadError}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex items-center">
                     <input
