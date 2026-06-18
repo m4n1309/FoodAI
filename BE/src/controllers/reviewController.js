@@ -79,16 +79,31 @@ export const createReview = async (req, res) => {
 
 export const createMenuItemReview = async (req, res) => {
   try {
-    const { menuItemId, orderItemId, customerId, rating, comment } = req.body;
+    const { menuItemId, orderItemId, customerId, customerPhone, customerName, rating, comment } = req.body;
 
     if (!menuItemId || !rating) {
         return errorResponse(res, 'Menu Item ID and rating are required', StatusCodes.BAD_REQUEST);
     }
 
+    let finalCustomerId = customerId;
+
+    if (customerPhone) {
+      let customer = await db.Customer.findOne({ where: { phone: customerPhone } });
+      if (!customer) {
+        customer = await db.Customer.create({ phone: customerPhone, fullName: customerName || 'Khách hàng' });
+      }
+      finalCustomerId = customer.id;
+
+      // Add 10 points for reviewing a dish
+      await customer.update({
+        loyaltyPoints: (customer.loyaltyPoints || 0) + 10
+      });
+    }
+
     const itemReview = await db.MenuItemReview.create({
       menuItemId,
       orderItemId,
-      customerId,
+      customerId: finalCustomerId,
       rating,
       comment
     });
@@ -133,9 +148,15 @@ export const getMenuItemReviews = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
+        const rating = req.query.rating ? parseInt(req.query.rating) : null;
+
+        const where = { menuItemId };
+        if (rating) {
+            where.rating = rating;
+        }
 
         const { count, rows } = await db.MenuItemReview.findAndCountAll({
-            where: { menuItemId },
+            where,
             limit,
             offset,
             order: [['created_at', 'DESC']],

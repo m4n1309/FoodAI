@@ -77,12 +77,35 @@ const getAllMenuItems = async (query) => {
     offset
   });
 
+  // Fetch ratings for all menu items
+  const ratings = await db.MenuItemReview.findAll({
+    attributes: [
+      'menuItemId',
+      [db.sequelize.fn('AVG', db.sequelize.col('rating')), 'avgRating'],
+      [db.sequelize.fn('COUNT', db.sequelize.col('id')), 'reviewCount']
+    ],
+    group: ['menuItemId'],
+    raw: true
+  });
+
+  const ratingMap = {};
+  ratings.forEach(r => {
+    ratingMap[r.menuItemId] = {
+      avgRating: parseFloat(Number(r.avgRating || 0).toFixed(1)),
+      reviewCount: parseInt(r.reviewCount || 0, 10)
+    };
+  });
+
   return {
     total: count,
     page: numericPage,
     limit: numericLimit,
     totalPages: Math.ceil(count / numericLimit),
-    menuItems
+    menuItems: menuItems.map(item => {
+      const itemJson = item.toJSON();
+      itemJson.rating = ratingMap[item.id] || { avgRating: 0.0, reviewCount: 0 };
+      return itemJson;
+    })
   };
 };
 

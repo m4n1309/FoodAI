@@ -673,6 +673,21 @@ const CustomerMenuPage = () => {
                    {/* Content Container */}
                    <div className="p-4 flex flex-col flex-1">
                       <h3 className="text-lg font-black text-gray-900 line-clamp-1 mb-1">{it.name}</h3>
+
+                      <div className="flex items-center gap-1 mb-2">
+                        {it.rating && it.rating.reviewCount > 0 ? (
+                          <>
+                            <span className="flex items-center gap-0.5 text-xs text-amber-500 font-bold">
+                              <StarIcon className="w-3.5 h-3.5 fill-current" />
+                              {it.rating.avgRating}
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-medium">({it.rating.reviewCount} đánh giá)</span>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 font-medium italic">Chưa có đánh giá</span>
+                        )}
+                      </div>
+
                       <p className="text-xs text-gray-500 font-medium line-clamp-1 mb-4">{restaurant?.name || 'm4nFood Partner'} • {it.isCombo ? 'Combo' : 'Món lẻ'}</p>
                       
                       <div className="mt-auto flex items-center justify-between">
@@ -745,7 +760,14 @@ const CustomerMenuPage = () => {
       )}
 
       {/* Modals */}
-      <MenuItemDetailModal open={modalOpen} onClose={() => setModalOpen(false)} menuItem={selectedMenuItem} onAddToCart={handleAddMenuItem} />
+      <MenuItemDetailModal 
+        open={modalOpen} 
+        onClose={() => setModalOpen(false)} 
+        menuItem={selectedMenuItem} 
+        onAddToCart={handleAddMenuItem} 
+        customer={customer}
+        onReviewSubmit={() => loadAll()}
+      />
       <ComboDetailModal open={comboModalOpen} onClose={() => setComboModalOpen(false)} combo={selectedCombo} onAdd={(comboId, qty) => handleAddCombo(comboId, qty)} />
       <PlaceOrderModal 
         open={placeOrderModalOpen} 

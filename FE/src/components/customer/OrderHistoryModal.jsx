@@ -4,12 +4,14 @@ import { XMarkIcon, CalendarDaysIcon, ArrowLeftStartOnRectangleIcon, SparklesIco
 import customerApi from '../../services/customerService.js';
 import toast from 'react-hot-toast';
 import PropTypes from 'prop-types';
+import ReviewModal from './ReviewModal.jsx';
 
 const formatMoney = (v) => Number(v || 0).toLocaleString('vi-VN') + 'đ';
 
 const OrderHistoryModal = ({ open, onClose, phone, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
+  const [activeReviewOrder, setActiveReviewOrder] = useState(null);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -180,8 +182,18 @@ const OrderHistoryModal = ({ open, onClose, phone, onLogout }) => {
                               </div>
 
                               {/* Footer */}
-                              <div className="flex justify-between items-center mt-3 text-xs">
-                                <span className="text-gray-400 font-medium">Bàn {order.table?.tableNumber || 'N/A'}</span>
+                              <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-50 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-gray-400 font-medium">Bàn {order.table?.tableNumber || 'N/A'}</span>
+                                  {order.orderStatus === 'completed' && (
+                                    <button
+                                      onClick={() => setActiveReviewOrder(order)}
+                                      className="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] transition-colors flex items-center gap-1 shadow-sm"
+                                    >
+                                      ⭐ Đánh giá
+                                    </button>
+                                  )}
+                                </div>
                                 <div className="flex items-center gap-2">
                                   <span className="text-gray-400 font-semibold">Tổng:</span>
                                   <span className="font-bold text-primary-700">{formatMoney(order.totalAmount)}</span>
@@ -216,6 +228,12 @@ const OrderHistoryModal = ({ open, onClose, phone, onLogout }) => {
           </div>
         </div>
       </Dialog>
+      <ReviewModal 
+        isOpen={!!activeReviewOrder} 
+        onClose={() => setActiveReviewOrder(null)} 
+        restaurantId={activeReviewOrder?.restaurantId ? String(activeReviewOrder.restaurantId) : undefined}
+        order={activeReviewOrder} 
+      />
     </Transition>
   );
 };

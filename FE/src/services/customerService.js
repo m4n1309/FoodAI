@@ -19,7 +19,10 @@ const customerService = {
   chatbotQuery: (payload) => httpClient.post('/customer/chatbot/query', payload),
   addItemToActiveOrder: (payload) => httpClient.post('/customer/orders/active/items', payload),
   requestPayment: (orderId) => httpClient.post(`/customer/orders/${orderId}/request-payment`),
-  getOrderHistory: (phone) => httpClient.get('/customer/orders/history', { params: { phone } })
+  getOrderHistory: (phone) => httpClient.get('/customer/orders/history', { params: { phone } }),
+  getAllReviewsAdmin: (params) => httpClient.get('/reviews/admin/all', { params }),
+  updateReviewStatus: (id, payload) => httpClient.put(`/reviews/${id}/status`, payload),
+  respondToReview: (id, payload) => httpClient.put(`/reviews/${id}/respond`, payload)
 };
 
 export default customerService;

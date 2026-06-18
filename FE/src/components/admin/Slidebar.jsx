@@ -12,6 +12,7 @@ import {
   ArrowRightOnRectangleIcon,
   TicketIcon,
   UserGroupIcon,
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth.js';
 
@@ -77,6 +78,12 @@ const Sidebar = ({ isOpen, onClose }) => {
       name: 'Combo',
       href: '/admin/combos',
       icon: RectangleStackIcon, // Reusing icon or I can find another one
+      roles: ['admin', 'waiter'],
+    },
+    {
+      name: 'Đánh giá',
+      href: '/admin/reviews',
+      icon: ChatBubbleLeftRightIcon,
       roles: ['admin', 'waiter'],
     },
     {

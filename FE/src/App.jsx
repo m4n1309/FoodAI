@@ -19,6 +19,7 @@ import CombosPage from './pages/admin/CombosPage';
 import CustomerMenuPage from './pages/customer/CustomerMenuPage';
 import CustomerHomePage from './pages/customer/CustomerHomePage';
 import StaffsPage from './pages/admin/StaffsPage.jsx';
+import ReviewsPage from './pages/admin/ReviewsPage.jsx';
 import { toastOptions } from './config/toastConfig.js';
 
 function ScanRedirectPage() {
@@ -289,6 +290,15 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin', 'waiter']}>
                   <CombosPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/reviews"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'waiter']}>
+                  <ReviewsPage />
                 </ProtectedRoute>
               }
             />

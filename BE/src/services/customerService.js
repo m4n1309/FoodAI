@@ -73,6 +73,25 @@ const bootstrap = async ({ qrCode, sessionId, isNewSession }) => {
     order: [['displayOrder', 'ASC'], ['id', 'ASC']]
   });
 
+  // Fetch ratings for all menu items in this restaurant
+  const ratings = await db.MenuItemReview.findAll({
+    attributes: [
+      'menuItemId',
+      [db.sequelize.fn('AVG', db.sequelize.col('rating')), 'avgRating'],
+      [db.sequelize.fn('COUNT', db.sequelize.col('id')), 'reviewCount']
+    ],
+    group: ['menuItemId'],
+    raw: true
+  });
+
+  const ratingMap = {};
+  ratings.forEach(r => {
+    ratingMap[r.menuItemId] = {
+      avgRating: parseFloat(Number(r.avgRating || 0).toFixed(1)),
+      reviewCount: parseInt(r.reviewCount || 0, 10)
+    };
+  });
+
   const combos = await db.Combo.findAll({
     where: {
       restaurantId: table.restaurantId,
@@ -114,7 +133,11 @@ const bootstrap = async ({ qrCode, sessionId, isNewSession }) => {
       orderStatus: currentOrder.orderStatus
     } : null,
     categories,
-    menuItems,
+    menuItems: menuItems.map(item => {
+      const itemJson = item.toJSON();
+      itemJson.rating = ratingMap[item.id] || { avgRating: 0.0, reviewCount: 0 };
+      return itemJson;
+    }),
     combos
   };
 };
