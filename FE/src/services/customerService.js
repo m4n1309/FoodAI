@@ -22,7 +22,8 @@ const customerService = {
   getOrderHistory: (phone) => httpClient.get('/customer/orders/history', { params: { phone } }),
   getAllReviewsAdmin: (params) => httpClient.get('/reviews/admin/all', { params }),
   updateReviewStatus: (id, payload) => httpClient.put(`/reviews/${id}/status`, payload),
-  respondToReview: (id, payload) => httpClient.put(`/reviews/${id}/respond`, payload)
+  respondToReview: (id, payload) => httpClient.put(`/reviews/${id}/respond`, payload),
+  respondToMenuItemReview: (id, payload) => httpClient.put(`/reviews/menu-item/${id}/respond`, payload)
 };
 
 export default customerService;

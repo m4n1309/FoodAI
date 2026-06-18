@@ -51,4 +51,12 @@ router.put('/:id/respond',
   reviewController.respondToReview
 );
 
+router.put('/menu-item/:id/respond',
+  [
+    body('response').notEmpty().withMessage('Response text is required')
+  ],
+  validationMiddleware,
+  reviewController.respondToMenuItemReview
+);
+
 export default router;

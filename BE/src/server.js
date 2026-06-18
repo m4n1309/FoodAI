@@ -117,6 +117,14 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log('Database connected');
 
+    // Ensure menu_item_reviews table has response columns
+    try {
+      await sequelize.query("ALTER TABLE menu_item_reviews ADD COLUMN response TEXT, ADD COLUMN responded_by BIGINT, ADD COLUMN responded_at DATETIME;");
+      console.log('Database table menu_item_reviews altered successfully with response columns');
+    } catch (e) {
+      // Ignore if columns already exist
+    }
+
     // ✅ Create HTTP server
     const httpServer = http.createServer(app);
 

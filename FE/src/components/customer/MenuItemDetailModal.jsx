@@ -201,6 +201,19 @@ const MenuItemDetailModal = ({ open, onClose, menuItem, onAddToCart, customer, o
                                   </div>
                                 </div>
                                 <p className="text-gray-600 font-medium">{rev.comment}</p>
+                                
+                                {rev.response && (
+                                  <div className="bg-orange-50/50 border border-orange-100/50 rounded-xl p-2.5 mt-2 text-[11px]">
+                                    <div className="flex justify-between items-center mb-0.5">
+                                      <span className="font-bold text-primary-700">Nhà hàng phản hồi:</span>
+                                      <span className="text-[9px] text-gray-400">
+                                        {rev.respondedAt ? new Date(rev.respondedAt).toLocaleDateString('vi-VN') : ''}
+                                      </span>
+                                    </div>
+                                    <p className="text-gray-600 italic">"{rev.response}"</p>
+                                  </div>
+                                )}
+
                                 <span className="text-[10px] text-gray-400 block mt-1.5">
                                   {new Date(rev.createdAt || rev.created_at).toLocaleDateString('vi-VN')}
                                 </span>

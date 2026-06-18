@@ -121,19 +121,21 @@ const ReviewsPage = () => {
     }
   };
 
-  // Submit response to review
-  const handleSendResponse = async (reviewId) => {
+  // Submit response to menu item review
+  const handleSendMenuItemResponse = async (reviewId) => {
     const text = replyText[reviewId];
     if (!text || !text.trim()) {
       toast.error('Vui lòng nhập nội dung phản hồi');
       return;
     }
     try {
-      await customerApi.respondToReview(reviewId, { response: text });
+      await customerApi.respondToMenuItemReview(reviewId, { response: text });
       toast.success('Gửi phản hồi thành công');
       setReplyingId(null);
       setReplyText(prev => ({ ...prev, [reviewId]: '' }));
-      fetchOrderReviews();
+      if (selectedMenuItem) {
+        fetchDishReviews(selectedMenuItem.id, dishStarFilter);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Không thể gửi phản hồi');
@@ -307,54 +309,6 @@ const ReviewsPage = () => {
                     <p className="text-xs text-gray-700 leading-relaxed font-medium">{rev.comment || 'Không có bình luận.'}</p>
                   </div>
 
-                  {/* Reply Section */}
-                  {rev.response ? (
-                    <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mt-3">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[10px] font-bold text-primary-700 uppercase tracking-wider">Phản hồi của nhà hàng:</span>
-                        <span className="text-[9px] text-gray-400">
-                          {rev.respondedAt ? new Date(rev.respondedAt).toLocaleDateString('vi-VN') : ''}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-600 italic font-medium">"{rev.response}"</p>
-                    </div>
-                  ) : (
-                    <div className="mt-3">
-                      {replyingId === rev.id ? (
-                        <div className="flex flex-col gap-2 mt-2">
-                          <textarea
-                            rows={2}
-                            placeholder="Nhập nội dung phản hồi đánh giá của khách hàng..."
-                            value={replyText[rev.id] || ''}
-                            onChange={(e) => setReplyText(prev => ({ ...prev, [rev.id]: e.target.value }))}
-                            className="w-full rounded-xl border border-gray-200 p-3 text-xs outline-none focus:ring-1 focus:ring-primary-500 bg-white"
-                          />
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => setReplyingId(null)}
-                              className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-gray-500 hover:bg-gray-100 transition-colors"
-                            >
-                              Hủy
-                            </button>
-                            <button
-                              onClick={() => handleSendResponse(rev.id)}
-                              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold shadow-sm transition-colors"
-                            >
-                              Gửi phản hồi
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setReplyingId(rev.id)}
-                          className="flex items-center gap-1.5 text-[10px] text-indigo-600 hover:text-indigo-800 font-bold transition-all"
-                        >
-                          <ChatBubbleLeftRightIcon className="w-4 h-4" />
-                          Gửi phản hồi cho khách
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -527,9 +481,58 @@ const ReviewsPage = () => {
                               </div>
                             </div>
                           </div>
-                          <p className="text-xs text-gray-600 font-medium leading-relaxed">
+                          <p className="text-xs text-gray-600 font-medium leading-relaxed mb-2">
                             {rev.comment || 'Khách hàng không để lại bình luận.'}
                           </p>
+
+                          {/* Reply Section for Dish Reviews */}
+                          {rev.response ? (
+                            <div className="bg-white border border-gray-100 rounded-xl p-3 mt-2 shadow-sm">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-[9px] font-bold text-primary-700 uppercase tracking-wider">Phản hồi của nhà hàng:</span>
+                                <span className="text-[8px] text-gray-400">
+                                  {rev.respondedAt ? new Date(rev.respondedAt).toLocaleDateString('vi-VN') : ''}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-600 italic font-medium">"{rev.response}"</p>
+                            </div>
+                          ) : (
+                            <div className="mt-2">
+                              {replyingId === rev.id ? (
+                                <div className="flex flex-col gap-2 mt-1">
+                                  <textarea
+                                    rows={2}
+                                    placeholder="Nhập nội dung phản hồi món ăn..."
+                                    value={replyText[rev.id] || ''}
+                                    onChange={(e) => setReplyText(prev => ({ ...prev, [rev.id]: e.target.value }))}
+                                    className="w-full rounded-xl border border-gray-200 p-2 text-xs outline-none focus:ring-1 focus:ring-primary-500 bg-white"
+                                  />
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      onClick={() => setReplyingId(null)}
+                                      className="px-2.5 py-1 rounded-lg text-[9px] font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                                    >
+                                      Hủy
+                                    </button>
+                                    <button
+                                      onClick={() => handleSendMenuItemResponse(rev.id)}
+                                      className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-bold shadow-sm transition-colors"
+                                    >
+                                      Gửi phản hồi
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setReplyingId(rev.id)}
+                                  className="flex items-center gap-1 text-[9px] text-indigo-600 hover:text-indigo-800 font-bold transition-all"
+                                >
+                                  <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" />
+                                  Gửi phản hồi
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

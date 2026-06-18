@@ -160,7 +160,10 @@ export const getMenuItemReviews = async (req, res) => {
             limit,
             offset,
             order: [['created_at', 'DESC']],
-            include: [{ model: db.Customer, as: 'customer', attributes: ['id', 'fullName', 'avatarUrl'] }]
+            include: [
+                { model: db.Customer, as: 'customer', attributes: ['id', 'fullName', 'avatarUrl'] },
+                { model: db.Staff, as: 'responder', attributes: ['id', 'fullName'] }
+            ]
         });
 
         return successResponse(res, {
@@ -247,6 +250,36 @@ export const respondToReview = async (req, res) => {
     }
 };
 
+export const respondToMenuItemReview = async (req, res) => {
+    try {
+        const restaurantId = req.staff.restaurantId;
+        const staffId = req.staff.id;
+        const { id } = req.params;
+        const { response } = req.body;
+
+        const review = await db.MenuItemReview.findOne({ 
+            where: { id },
+            include: [{
+                model: db.MenuItem,
+                as: 'menuItem',
+                where: { restaurantId }
+            }]
+        });
+        if (!review) return notFoundResponse(res, 'MenuItem review not found');
+
+        await review.update({ 
+            response, 
+            respondedBy: staffId, 
+            respondedAt: new Date() 
+        });
+
+        return successResponse(res, review, 'Responded to menu item review successfully');
+    } catch (error) {
+        console.error(error);
+        return errorResponse(res, 'Failed to respond to menu item review', StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
 export default {
     createReview,
     createMenuItemReview,
@@ -254,5 +287,6 @@ export default {
     getMenuItemReviews,
     getAllReviewsAdmin,
     updateReviewStatus,
-    respondToReview
+    respondToReview,
+    respondToMenuItemReview
 };

@@ -15,6 +15,10 @@ const MenuItemReview = (sequelize, DataTypes) => {
         foreignKey: 'customerId',
         as: 'customer'
       });
+      MenuItemReview.belongsTo(models.Staff, {
+        foreignKey: 'respondedBy',
+        as: 'responder'
+      });
     }
   }
   MenuItemReview.init({
@@ -45,6 +49,20 @@ const MenuItemReview = (sequelize, DataTypes) => {
     },
     comment: {
       type: DataTypes.TEXT,
+      allowNull: true
+    },
+    response: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Phản hồi từ nhà hàng'
+    },
+    respondedBy: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      comment: 'Nhân viên phản hồi'
+    },
+    respondedAt: {
+      type: DataTypes.DATE,
       allowNull: true
     }
   }, {
