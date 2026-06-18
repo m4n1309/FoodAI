@@ -29,8 +29,8 @@ const CheckInModal = ({ open, onSkip, onSubmit, loading }) => {
         </div>
 
         <div className="mt-6 text-center mb-6">
-          <h2 className="text-2xl font-black text-gray-900">Chào mừng bạn! 👋</h2>
-          <p className="text-sm text-gray-500 mt-2">Vui lòng để lại thông tin để chúng mình có thể phục vụ bạn tốt hơn và tích điểm thành viên nhé.</p>
+          <h2 className="text-2xl font-black text-gray-900">Đăng nhập Thành viên</h2>
+          <p className="text-sm text-gray-500 mt-2">Nhập số điện thoại để kết nối tài khoản tích điểm và xem lịch sử đặt món của bạn.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -51,7 +51,7 @@ const CheckInModal = ({ open, onSkip, onSubmit, loading }) => {
             <input
               type="text"
               className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 transition-all hover:bg-white"
-              placeholder="Để nhân viên dễ gọi tên..."
+              placeholder="Tên khách hàng..."
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               disabled={loading}
@@ -65,7 +65,7 @@ const CheckInModal = ({ open, onSkip, onSubmit, loading }) => {
               className="w-full rounded-2xl bg-indigo-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-xl active:scale-95 disabled:opacity-50 flex justify-center items-center gap-2"
               disabled={loading}
             >
-              {loading ? 'Đang lưu...' : 'Nhận Điểm Khách Hàng'}
+              {loading ? 'Đang xác thực...' : 'Đăng nhập'}
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             </button>
             <button
@@ -74,7 +74,7 @@ const CheckInModal = ({ open, onSkip, onSubmit, loading }) => {
               onClick={onSkip}
               disabled={loading}
             >
-              Bỏ qua, tôi muốn gọi món luôn
+              Bỏ qua
             </button>
           </div>
         </form>

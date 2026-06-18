@@ -425,7 +425,7 @@ const DashboardPage = () => {
                 <div className="space-y-3.5 text-xs font-semibold">
                   <div className="flex justify-between border-b border-gray-50 pb-2">
                     <span className="text-gray-400">Tên cơ sở:</span>
-                    <span className="text-gray-800">{user?.restaurant?.name || 'Nhà Hàng Hương Việt'}</span>
+                    <span className="text-gray-800">{user?.restaurant?.name || 'm4nfood'}</span>
                   </div>
                   <div className="flex justify-between border-b border-gray-50 pb-2">
                     <span className="text-gray-400">Tổng số bàn:</span>

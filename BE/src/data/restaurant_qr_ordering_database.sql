@@ -714,9 +714,9 @@ CREATE INDEX idx_notifications_recipient_read ON notifications(recipient_type, r
 
 -- Thêm nhà hàng mẫu
 INSERT INTO restaurants (name, slug, address, phone, email, description, tax_rate, service_charge_rate, bank_info) VALUES
-('Nhà Hàng Hương Việt', 'huong-viet', '123 Nguyễn Huệ, Q1, TP.HCM', '0901234567', 'info@huongviet.com', 
- 'Nhà hàng ẩm thực Việt Nam truyền thống', 10.00, 5.00, 
- '{"bank_name": "Vietcombank", "account_number": "1234567890", "account_name": "Nhà Hàng Hương Việt"}');
+('m4nfood', 'm4nfood', '123 Nguyễn Huệ, Q1, TP.HCM', '0901234567', 'info@m4nfood.com', 
+ 'Hệ thống đặt món thông minh m4nfood', 10.00, 5.00, 
+ '{"bank_name": "Vietcombank", "account_number": "1234567890", "account_name": "m4nfood"}');
 
 -- =====================================================
 -- END OF SCHEMA

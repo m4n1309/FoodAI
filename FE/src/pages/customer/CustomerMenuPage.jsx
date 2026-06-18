@@ -5,12 +5,14 @@ import PlaceOrderModal from '../../components/customer/PlaceOrderModal';
 import ReviewModal from '../../components/customer/ReviewModal';
 import ChatbotWidget from '../../components/customer/ChatbotWidget.jsx';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
+import CheckInModal from '../../components/customer/CheckInModal';
+import OrderHistoryModal from '../../components/customer/OrderHistoryModal';
 import { useLocation, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { default as io } from 'socket.io-client';
 import customerApi from '../../services/customerService.js';
 import { useSocket } from '../../hooks/useSocket.js';
-import { PlusIcon, MapPinIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MapPinIcon, ShoppingCartIcon, UserIcon } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 
 const formatMoney = (v) => {
@@ -34,6 +36,12 @@ const CustomerMenuPage = () => {
   const [cart, setCart] = useState(null);
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('all');
+
+  // Member & History state
+  const [customer, setCustomer] = useState(null);
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [checkInLoading, setCheckInLoading] = useState(false);
 
   // Modals state
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
@@ -173,10 +181,20 @@ const CustomerMenuPage = () => {
       const savedCustomer = localStorage.getItem('foodai_customer');
       if (savedCustomer) {
         const parsed = JSON.parse(savedCustomer);
+        setCustomer(parsed);
         // If the cart doesn't have a customer linked, auto check-in in background
         if (!currentCart.customerId && parsed.phone) {
           try {
-            await customerApi.checkIn({ phone: parsed.phone, fullName: parsed.fullName });
+            const checkInRes = await customerApi.checkIn({ phone: parsed.phone, fullName: parsed.fullName });
+            const updatedCustomer = {
+              id: checkInRes.data?.id || parsed.id,
+              fullName: checkInRes.data?.fullName || parsed.fullName,
+              phone: checkInRes.data?.phone || parsed.phone,
+              loyaltyPoints: checkInRes.data?.loyaltyPoints || 0
+            };
+            localStorage.setItem('foodai_customer', JSON.stringify(updatedCustomer));
+            setCustomer(updatedCustomer);
+            
             // Re-fetch cart to get it with customer details linked
             const refreshedCartRes = await customerApi.getCart({
               restaurantId: bootData.table.restaurantId,
@@ -188,11 +206,14 @@ const CustomerMenuPage = () => {
           }
         }
       } else if (currentCart.customerId) {
-        localStorage.setItem('foodai_customer', JSON.stringify({
+        const customerData = {
           id: currentCart.customerId,
           fullName: currentCart.customerName,
-          phone: currentCart.customerPhone
-        }));
+          phone: currentCart.customerPhone,
+          loyaltyPoints: 0
+        };
+        localStorage.setItem('foodai_customer', JSON.stringify(customerData));
+        setCustomer(customerData);
       }
 
       setCart(currentCart);
@@ -217,6 +238,44 @@ const CustomerMenuPage = () => {
   }, [effectiveQrCode]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  const handleCheckInSubmit = async ({ phone, fullName }) => {
+    try {
+      setCheckInLoading(true);
+      const res = await customerApi.checkIn({ phone, fullName });
+      const customerData = {
+        id: res.data.id,
+        fullName: res.data.fullName,
+        phone: res.data.phone,
+        loyaltyPoints: res.data.loyaltyPoints || 0
+      };
+      localStorage.setItem('foodai_customer', JSON.stringify(customerData));
+      setCustomer(customerData);
+      setCheckInOpen(false);
+      toast.success(`Chào mừng ${customerData.fullName}! Tích điểm thành công. 🎉`);
+      
+      // Re-fetch cart to get it with customer details linked
+      if (bootstrap?.table) {
+        const cartRes = await customerApi.createOrGetCart({
+          restaurantId: bootstrap.table.restaurantId,
+          tableId: bootstrap.table.id
+        });
+        setCart(cartRes.data.cart);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Đăng ký thành viên thất bại');
+    } finally {
+      setCheckInLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('foodai_customer');
+    setCustomer(null);
+    setHistoryOpen(false);
+    toast.success('Đã đăng xuất tài khoản tích điểm');
+  };
 
   // Polling every 2 seconds for active order updates
   useEffect(() => {
@@ -375,11 +434,26 @@ const CustomerMenuPage = () => {
           <div className="flex items-center gap-8">
             <div className="text-3xl font-black text-primary-600 tracking-tighter">m4nFood</div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
              <div className="hidden sm:flex items-center gap-1 text-gray-600 hover:text-primary-600 cursor-pointer">
                 <MapPinIcon className="w-5 h-5" />
                 <span className="text-sm font-medium">Bàn {table?.tableNumber}</span>
              </div>
+             <button
+               onClick={() => {
+                 if (customer) {
+                   setHistoryOpen(true);
+                 } else {
+                   setCheckInOpen(true);
+                 }
+               }}
+               className="flex items-center gap-1.5 bg-white border border-orange-100 hover:bg-orange-50 text-gray-700 px-4 py-2 rounded-full shadow-sm transition-all text-xs font-bold active:scale-95 shrink-0"
+             >
+               <UserIcon className="w-4 h-4 text-primary-600" />
+               <span className="max-w-[80px] truncate">
+                 {customer ? customer.fullName : 'Thành Viên'}
+               </span>
+             </button>
              <button 
                className="relative flex items-center gap-2 bg-primary-700 text-white px-4 py-2 rounded-full hover:bg-primary-800 transition-colors"
                onClick={() => setPlaceOrderModalOpen(true)}
@@ -687,6 +761,18 @@ const CustomerMenuPage = () => {
         onClose={() => { setReviewModalOpen(false); setCompletedOrder(null); }} 
         restaurantId={String(restaurantId || '')} 
         order={completedOrder || placedOrder} 
+      />
+      <CheckInModal
+        open={checkInOpen}
+        onSkip={() => setCheckInOpen(false)}
+        onSubmit={handleCheckInSubmit}
+        loading={checkInLoading}
+      />
+      <OrderHistoryModal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        phone={customer?.phone}
+        onLogout={handleLogout}
       />
       <ChatbotWidget restaurantId={restaurantId} tableId={table?.id} />
     </div>
