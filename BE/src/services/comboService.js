@@ -24,7 +24,7 @@ const ensureStaffRestaurantAccess = (staffRestaurantId, targetRestaurantId, mess
 };
 
 const getAllCombos = async (query) => {
-  const { restaurantId, isAvailable, search } = query;
+  const { restaurantId, isAvailable, search, page = 1, limit = 10 } = query;
   const where = {};
   if (restaurantId) where.restaurantId = restaurantId;
   if (isAvailable !== undefined) where.isAvailable = isAvailable === 'true';
@@ -32,7 +32,11 @@ const getAllCombos = async (query) => {
     where.name = { [Op.like]: `%${search}%` };
   }
 
-  return db.Combo.findAll({
+  const numericPage = Math.max(parseInt(page, 10) || 1, 1);
+  const numericLimit = Math.max(parseInt(limit, 10) || 10, 1);
+  const offset = (numericPage - 1) * numericLimit;
+
+  const { count, rows: combos } = await db.Combo.findAndCountAll({
     where,
     include: [{
       model: db.ComboItem,
@@ -43,8 +47,18 @@ const getAllCombos = async (query) => {
         attributes: ['id', 'name', 'price', 'discountPrice', 'imageUrl']
       }]
     }],
-    order: [['id', 'DESC']]
+    order: [['id', 'DESC']],
+    limit: numericLimit,
+    offset
   });
+
+  return {
+    total: count,
+    page: numericPage,
+    limit: numericLimit,
+    totalPages: Math.ceil(count / numericLimit),
+    combos
+  };
 };
 
 const getComboById = async (id) => {

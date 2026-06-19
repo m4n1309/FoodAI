@@ -98,6 +98,14 @@ const getAllMenuItems = async (query) => {
     };
   });
 
+  const statsWhere = {};
+  if (restaurantId) statsWhere.restaurantId = restaurantId;
+
+  const totalCount = await db.MenuItem.count({ where: statsWhere });
+  const availableCount = await db.MenuItem.count({ where: { ...statsWhere, isAvailable: true } });
+  const unavailableCount = await db.MenuItem.count({ where: { ...statsWhere, isAvailable: false } });
+  const featuredCount = await db.MenuItem.count({ where: { ...statsWhere, isFeatured: true } });
+
   return {
     total: count,
     page: numericPage,
@@ -107,7 +115,13 @@ const getAllMenuItems = async (query) => {
       const itemJson = item.toJSON();
       itemJson.rating = ratingMap[item.id] || { avgRating: 0.0, reviewCount: 0 };
       return itemJson;
-    })
+    }),
+    stats: {
+      total: totalCount,
+      available: availableCount,
+      unavailable: unavailableCount,
+      featured: featuredCount
+    }
   };
 };
 

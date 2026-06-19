@@ -139,13 +139,21 @@ const getAllTables = async (query) => {
   });
 
   const formattedTables = tables.map((table) => formatTableResponse(table, requestHost));
+  const stats = restaurantId ? await getTableStatusSummary(restaurantId) : {
+    available: 0,
+    occupied: 0,
+    reserved: 0,
+    maintenance: 0,
+    total: 0
+  };
 
   return {
     total: count,
     page: numericPage,
     limit: numericLimit,
     totalPages: Math.ceil(count / numericLimit),
-    tables: formattedTables
+    tables: formattedTables,
+    stats
   };
 };
 

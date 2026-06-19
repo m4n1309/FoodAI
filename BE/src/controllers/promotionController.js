@@ -9,11 +9,26 @@ import { triggerRAGSync } from '../services/ragService.js';
 export const getPromotions = async (req, res) => {
   try {
     const restaurantId = req.staff.restaurantId;
-    const promotions = await db.Promotion.findAll({
+    const { page = 1, limit = 10 } = req.query;
+
+    const numericPage = Math.max(parseInt(page, 10) || 1, 1);
+    const numericLimit = Math.max(parseInt(limit, 10) || 10, 1);
+    const offset = (numericPage - 1) * numericLimit;
+
+    const { count, rows: promotions } = await db.Promotion.findAndCountAll({
       where: { restaurantId },
-      order: [['created_at', 'DESC']]
+      order: [['created_at', 'DESC']],
+      limit: numericLimit,
+      offset
     });
-    return successResponse(res, promotions, 'Promotions retrieved successfully');
+
+    return successResponse(res, {
+      total: count,
+      page: numericPage,
+      limit: numericLimit,
+      totalPages: Math.ceil(count / numericLimit),
+      promotions
+    }, 'Promotions retrieved successfully');
   } catch (error) {
     console.error(error);
     return errorResponse(res, 'Failed to fetch promotions', StatusCodes.INTERNAL_SERVER_ERROR);

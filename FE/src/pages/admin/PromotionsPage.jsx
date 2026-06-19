@@ -17,6 +17,10 @@ const PromotionsPage = () => {
   const { user } = useAuth();
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,17 +31,22 @@ const PromotionsPage = () => {
   const fetchPromotions = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await promotionApi.getAll();
-      // res is the response body { success: true, message: '...', data: [...] }
-      // So res.data is the actual array of promotions
-      setPromotions(res.data || []);
+      const res = await promotionApi.getAll({
+        page: currentPage,
+        limit: pageSize,
+      });
+      // res is the response body { success: true, message: '...', data: { total, page, limit, totalPages, promotions } }
+      // So res.data is the paginated object containing promotions
+      setPromotions(res.data.promotions || []);
+      setTotalItems(res.data.total || 0);
+      setTotalPages(res.data.totalPages || 1);
     } catch (error) {
       console.error(error);
       toast.error('Lỗi khi tải danh sách Voucher');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, pageSize]);
 
   useEffect(() => {
     if (user?.restaurantId) {
@@ -186,6 +195,52 @@ const PromotionsPage = () => {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && totalItems > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200 pt-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <p className="text-sm text-gray-600">
+              Trang {currentPage}/{totalPages} - Tổng {totalItems} Voucher
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Hiển thị:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(parseInt(e.target.value, 10));
+                  setCurrentPage(1);
+                }}
+                className="input-field text-xs py-1 px-2 w-20"
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Trước
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sau
+              </button>
+            </div>
+          )}
         </div>
       )}
 

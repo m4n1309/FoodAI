@@ -25,9 +25,10 @@ const TablesPage = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterLocation, setFilterLocation] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(8);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [overallStats, setOverallStats] = useState({ available: 0, occupied: 0, reserved: 0, maintenance: 0, total: 0 });
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,6 +67,9 @@ const TablesPage = () => {
       setTables(response.data.tables || []);
       setTotalItems(response.data.total || 0);
       setTotalPages(response.data.totalPages || 1);
+      if (response.data.stats) {
+        setOverallStats(response.data.stats);
+      }
     } catch (error) {
       console.error('Fetch tables error:', error);
       toast.error('Không thể tải danh sách bàn ăn');
@@ -299,25 +303,19 @@ const TablesPage = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="card">
           <p className="text-sm text-gray-600 mb-1">Tổng bàn</p>
-          <p className="text-2xl font-bold text-gray-900">{totalItems}</p>
+          <p className="text-2xl font-bold text-gray-900">{overallStats.total}</p>
         </div>
         <div className="card">
           <p className="text-sm text-gray-600 mb-1">Trống</p>
-          <p className="text-2xl font-bold text-green-600">
-            {tables.filter((t) => t.status === 'available').length}
-          </p>
+          <p className="text-2xl font-bold text-green-600">{overallStats.available}</p>
         </div>
         <div className="card">
           <p className="text-sm text-gray-600 mb-1">Đang dùng</p>
-          <p className="text-2xl font-bold text-red-600">
-            {tables.filter((t) => t.status === 'occupied').length}
-          </p>
+          <p className="text-2xl font-bold text-red-600">{overallStats.occupied}</p>
         </div>
         <div className="card">
           <p className="text-sm text-gray-600 mb-1">Đã đặt</p>
-          <p className="text-2xl font-bold text-yellow-600">
-            {tables.filter((t) => t.status === 'reserved').length}
-          </p>
+          <p className="text-2xl font-bold text-yellow-600">{overallStats.reserved}</p>
         </div>
       </div>
 
@@ -417,29 +415,50 @@ const TablesPage = () => {
         </div>
       )}
 
-      {!loading && totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
-          <p className="text-sm text-gray-600">
-            Trang {currentPage}/{totalPages} - Tổng {totalItems} bàn
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Trước
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Sau
-            </button>
+      {!loading && totalItems > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200 pt-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <p className="text-sm text-gray-600">
+              Trang {currentPage}/{totalPages} - Tổng {totalItems} bàn
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Hiển thị:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(parseInt(e.target.value, 10));
+                  setCurrentPage(1);
+                }}
+                className="input-field text-xs py-1 px-2 w-20"
+              >
+                <option value="4">4</option>
+                <option value="8">8</option>
+                <option value="16">16</option>
+                <option value="32">32</option>
+                <option value="64">64</option>
+              </select>
+            </div>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Trước
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sau
+              </button>
+            </div>
+          )}
         </div>
       )}
 

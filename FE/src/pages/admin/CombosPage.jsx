@@ -22,6 +22,10 @@ const CombosPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAvailable, setFilterAvailable] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,6 +39,8 @@ const CombosPage = () => {
       setLoading(true);
       const params = {
         restaurantId: user?.restaurantId,
+        page: currentPage,
+        limit: pageSize,
       };
 
       if (searchTerm.trim()) {
@@ -46,20 +52,26 @@ const CombosPage = () => {
       }
 
       const response = await comboApi.getAll(params);
-      setCombos(response.data || []);
+      setCombos(response.data.combos || []);
+      setTotalItems(response.data.total || 0);
+      setTotalPages(response.data.totalPages || 1);
     } catch (error) {
       console.error('Fetch combos error:', error);
       toast.error('Không thể tải danh sách combo');
     } finally {
       setLoading(false);
     }
-  }, [user?.restaurantId, searchTerm, filterAvailable]);
+  }, [user?.restaurantId, searchTerm, filterAvailable, currentPage, pageSize]);
 
   useEffect(() => {
     if (user?.restaurantId) {
       fetchCombos();
     }
   }, [user?.restaurantId, fetchCombos]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterAvailable]);
 
   // Handle create/edit
   const handleOpenModal = (combo = null) => {
@@ -288,6 +300,52 @@ const CombosPage = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {!loading && totalItems > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200 pt-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <p className="text-sm text-gray-600">
+              Trang {currentPage}/{totalPages} - Tổng {totalItems} Combo
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Hiển thị:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(parseInt(e.target.value, 10));
+                  setCurrentPage(1);
+                }}
+                className="input-field text-xs py-1 px-2 w-20"
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Trước
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sau
+              </button>
+            </div>
+          )}
         </div>
       )}
 

@@ -28,9 +28,10 @@ const MenuItemsPage = () => {
   const [filterAvailable, setFilterAvailable] = useState('all');
   const [filterFeatured, setFilterFeatured] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(12);
+  const [pageSize, setPageSize] = useState(12);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [overallStats, setOverallStats] = useState({ total: 0, available: 0, unavailable: 0, featured: 0 });
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -85,6 +86,9 @@ const MenuItemsPage = () => {
       setMenuItems(response.data.menuItems || []);
       setTotalItems(response.data.total || 0);
       setTotalPages(response.data.totalPages || 1);
+      if (response.data.stats) {
+        setOverallStats(response.data.stats);
+      }
     } catch (error) {
       console.error('Fetch menu items error:', error);
       toast.error('Không thể tải danh sách món ăn');
@@ -289,25 +293,19 @@ const MenuItemsPage = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="card">
           <p className="text-sm text-gray-600 mb-1">Tổng món</p>
-          <p className="text-2xl font-bold text-gray-900">{totalItems}</p>
+          <p className="text-2xl font-bold text-gray-900">{overallStats.total}</p>
         </div>
         <div className="card">
           <p className="text-sm text-gray-600 mb-1">Còn món</p>
-          <p className="text-2xl font-bold text-green-600">
-            {menuItems.filter((item) => item.isAvailable).length}
-          </p>
+          <p className="text-2xl font-bold text-green-600">{overallStats.available}</p>
         </div>
         <div className="card">
           <p className="text-sm text-gray-600 mb-1">Hết món</p>
-          <p className="text-2xl font-bold text-red-600">
-            {menuItems.filter((item) => !item.isAvailable).length}
-          </p>
+          <p className="text-2xl font-bold text-red-600">{overallStats.unavailable}</p>
         </div>
         <div className="card">
           <p className="text-sm text-gray-600 mb-1">Nổi bật</p>
-          <p className="text-2xl font-bold text-yellow-600">
-            {menuItems.filter((item) => item.isFeatured).length}
-          </p>
+          <p className="text-2xl font-bold text-yellow-600">{overallStats.featured}</p>
         </div>
       </div>
 
@@ -465,29 +463,50 @@ const MenuItemsPage = () => {
         </div>
       )}
 
-      {!loading && totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
-          <p className="text-sm text-gray-600">
-            Trang {currentPage}/{totalPages} - Tổng {totalItems} món ăn
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Trước
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Sau
-            </button>
+      {!loading && totalItems > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200 pt-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <p className="text-sm text-gray-600">
+              Trang {currentPage}/{totalPages} - Tổng {totalItems} món ăn
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Hiển thị:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(parseInt(e.target.value, 10));
+                  setCurrentPage(1);
+                }}
+                className="input-field text-xs py-1 px-2 w-20"
+              >
+                <option value="5">5</option>
+                <option value="12">12</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Trước
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sau
+              </button>
+            </div>
+          )}
         </div>
       )}
 

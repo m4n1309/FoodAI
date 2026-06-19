@@ -48,12 +48,20 @@ class Settings:
                    IF(cat.name IS NULL, '', CONCAT(' thuộc danh mục ', cat.name)),
                    ' có giá ', mi.price, ' VNĐ. ',
                    IF(mi.discount_price IS NULL, '', CONCAT('Giá khuyến mãi: ', mi.discount_price, ' VNĐ. ')),
+                   IF(mi.is_featured = 1, 'Món này là món nổi bật, đặc sắc và bán chạy của nhà hàng. ', ''),
+                   IF(oi_summary.order_count IS NULL OR oi_summary.order_count = 0, '', CONCAT('Món này đã được khách hàng đặt mua ', oi_summary.order_count, ' lần. ')),
                    IF(mi.is_spicy = 1, 'Món này có vị cay. ', ''),
                    IF(mi.is_vegetarian = 1, 'Món này phù hợp cho người ăn chay. ', ''),
                    IF(mi.allergens IS NULL, '', CONCAT('Cảnh báo dị ứng: ', mi.allergens, '. ')),
                    IF(mi.description IS NULL, '', CONCAT('Mô tả chi tiết: ', mi.description))) AS content
         FROM menu_items mi
         LEFT JOIN categories cat ON mi.category_id = cat.id
+        LEFT JOIN (
+            SELECT menu_item_id, COUNT(id) AS order_count
+            FROM order_items
+            WHERE item_status != 'cancelled'
+            GROUP BY menu_item_id
+        ) oi_summary ON mi.id = oi_summary.menu_item_id
         WHERE mi.is_available = 1 AND (:restaurant_id IS NULL OR mi.restaurant_id = :restaurant_id)
         UNION ALL
         SELECT
