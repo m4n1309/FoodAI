@@ -115,11 +115,13 @@ const MenuItemDetailModal = ({ open, onClose, menuItem, onAddToCart, customer, o
                 </button>
 
                 {/* Left Side: Image */}
-                <div className="md:w-1/2 relative bg-gray-100 h-48 sm:h-64 md:h-auto shrink-0">
+                <div className="md:w-1/2 relative bg-gray-100 h-48 sm:h-64 md:h-auto shrink-0 overflow-hidden">
                    <ImageWithFallback 
                      src={menuItem.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop"} 
                      alt={menuItem.name} 
                      className="w-full h-full object-cover"
+                     aspectRatio="auto"
+                     wrapperClassName="w-full h-full"
                    />
                 </div>
 

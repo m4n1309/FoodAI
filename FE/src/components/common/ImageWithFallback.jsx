@@ -7,6 +7,7 @@ const ImageWithFallback = ({
   fallbackText = 'No Image',
   aspectRatio = 'square', // 'square', 'video', 'auto'
   showLoading = true,
+  wrapperClassName = '',
 }) => {
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +54,7 @@ const ImageWithFallback = ({
   }
 
   return (
-    <div className={`relative ${aspectClasses[aspectRatio]}`}>
+    <div className={`relative ${aspectClasses[aspectRatio]} ${wrapperClassName}`}>
       {/* Loading state */}
       {showLoading && isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
