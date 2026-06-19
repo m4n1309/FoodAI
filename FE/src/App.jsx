@@ -54,6 +54,15 @@ function GlobalSocketListener() {
   const { user } = useAuth();
 
   useEffect(() => {
+    if (user && ['admin', 'waiter', 'kitchen'].includes(user.role)) {
+      toast('Nhấp vào màn hình bất kỳ lúc nào để kích hoạt âm thanh thông báo!', {
+        icon: '🔊',
+        duration: 8000
+      });
+    }
+  }, [user]);
+
+  useEffect(() => {
     if (!socket) return;
     
     // Nghe sự kiện từ Server

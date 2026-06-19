@@ -1,8 +1,48 @@
+let audioCtx = null;
+let activeUtterances = [];
+
+const getAudioContext = () => {
+  if (!audioCtx && typeof window !== 'undefined') {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      audioCtx = new AudioContext();
+    }
+  }
+  return audioCtx;
+};
+
+// Automatically try to unlock AudioContext on first user click/touch
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    const ctx = getAudioContext();
+    if (ctx) {
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(() => {
+          console.log('AudioContext unlocked successfully.');
+          cleanup();
+        }).catch((err) => {
+          console.warn('Failed to resume AudioContext:', err);
+        });
+      } else {
+        cleanup();
+      }
+    }
+  };
+
+  const cleanup = () => {
+    document.removeEventListener('click', unlockAudio);
+    document.removeEventListener('touchstart', unlockAudio);
+  };
+
+  document.addEventListener('click', unlockAudio);
+  document.addEventListener('touchstart', unlockAudio);
+}
+
 export const playNotificationSound = () => {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    
     if (ctx.state === 'suspended') {
       ctx.resume();
     }
@@ -43,15 +83,24 @@ export const speakNotification = (text) => {
   try {
     if (!window.speechSynthesis) return;
     
-    // Cancel any current queued utterances to make it instant and prevent overlapping
+    // Cancel any current queued utterances to make it instant
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'vi-VN';
     
+    // Store in global array to prevent garbage collection bug in Chrome
+    activeUtterances.push(utterance);
+    utterance.onend = () => {
+      activeUtterances = activeUtterances.filter(u => u !== utterance);
+    };
+    utterance.onerror = () => {
+      activeUtterances = activeUtterances.filter(u => u !== utterance);
+    };
+    
     // Try to find a Vietnamese voice
     const voices = window.speechSynthesis.getVoices();
-    const viVoice = voices.find(v => v.lang.startsWith('vi') || v.lang.includes('VI'));
+    const viVoice = voices.find(v => v.lang.toLowerCase().includes('vi'));
     if (viVoice) {
       utterance.voice = viVoice;
     }
