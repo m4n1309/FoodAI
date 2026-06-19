@@ -77,11 +77,13 @@ const KitchenPage = () => {
 
     // Listen to events that affect kitchen
     socket.on('order_placed', handleRefresh);
+    socket.on('order_confirmed', handleRefresh);
     socket.on('order_updated', handleRefresh); // When waiter confirms an order
     socket.on('item_status_changed', handleRefresh); // Just in case another kitchen staff updates it
 
     return () => {
       socket.off('order_placed', handleRefresh);
+      socket.off('order_confirmed', handleRefresh);
       socket.off('order_updated', handleRefresh);
       socket.off('item_status_changed', handleRefresh);
     };
@@ -97,9 +99,16 @@ const KitchenPage = () => {
     }
   };
 
-  const handleCancelItem = (itemId, itemName) => {
-    if (window.confirm(`Bạn có chắc chắn muốn hủy hoặc báo hết món "${itemName}"? Món này sẽ không tính tiền vào hóa đơn.`)) {
-      handleUpdateItem(itemId, 'cancelled');
+  const handleCancelItem = async (itemId, itemName) => {
+    const reason = window.prompt(`Nhập lý do hủy hoặc báo hết món "${itemName}":`, "Hết nguyên liệu");
+    if (reason === null) return; // User cancelled prompt
+
+    try {
+      await kitchenService.updateItemStatus(itemId, 'cancelled', reason);
+      fetchOrders();
+      toast.success('Đã hủy món thành công');
+    } catch (error) {
+      toast.error('Không thể hủy món');
     }
   };
 

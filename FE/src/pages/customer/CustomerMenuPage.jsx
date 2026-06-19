@@ -301,8 +301,11 @@ const CustomerMenuPage = () => {
           setReviewModalOpen(true);
           setPlacedOrder(null);
         } else if (data.status === 'cancelled') {
-          toast.error('Đơn hàng của bạn đã bị hủy.');
+          toast.error(`Đơn hàng bị hủy. Lý do: ${data.cancelledReason || 'Không có lý do'}`);
           setPlacedOrder(null);
+        } else if (data.status === 'ready') {
+          toast.success('Đơn hàng đã chuẩn bị xong!');
+          fetchActiveOrder();
         } else {
           fetchActiveOrder();
         }
@@ -312,6 +315,9 @@ const CustomerMenuPage = () => {
     const handleItemStatus = (data) => {
       // Refresh order items status when changed in kitchen
       fetchActiveOrder();
+      if (data.status === 'cancelled') {
+        toast.error(`Món ${data.itemName || 'Món ăn'} bị hủy. Lý do: ${data.cancelledReason || 'Không có lý do'}`);
+      }
     };
 
     socket.on('order_status_changed', handleOrderStatus);

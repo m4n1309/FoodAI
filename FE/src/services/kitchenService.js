@@ -5,8 +5,8 @@ const kitchenService = {
   getActiveOrders: () => httpClient.get('/kitchen/orders'),
   
   // Cập nhật trạng thái món ăn
-  updateItemStatus: (itemId, status) => 
-    httpClient.patch(`/kitchen/items/${itemId}/status`, { status }),
+  updateItemStatus: (itemId, status, cancelledReason) => 
+    httpClient.patch(`/kitchen/items/${itemId}/status`, { status, cancelledReason }),
 };
 
 export default kitchenService;

@@ -60,46 +60,32 @@ function GlobalSocketListener() {
     const handleOrderPlaced = (data) => {
       if (!user || !['admin', 'waiter'].includes(user.role)) return;
       playNotificationSound();
-      const tableText = data.tableNumber ? `bàn ${data.tableNumber}` : 'mang về';
-      speakNotification(`Bạn có đơn hàng mới từ ${tableText}.`);
-      toast('Đơn hàng mới: #' + data.orderNumber, { icon: '🔔' });
+      const tableText = data.tableNumber || 'mang về';
+      speakNotification(`Bàn ${tableText} có đơn hàng mới.`);
+      toast('Bàn ' + tableText + ' có đơn hàng mới', { icon: '🔔' });
     };
 
-    const handleNewOrder = (data) => {
+    const handleOrderConfirmed = (data) => {
       if (!user || !['admin', 'kitchen'].includes(user.role)) return;
       playNotificationSound();
-      const tableText = data.tableNumber ? `bàn ${data.tableNumber}` : 'mang về';
-      speakNotification(`Bếp nhận đơn mới từ ${tableText}.`);
-      toast('Bếp nhận đơn mới: #' + data.orderNumber, { icon: '🔥' });
+      const tableText = data.tableNumber || 'mang về';
+      speakNotification(`Bàn ${tableText} đã xác nhận đơn.`);
+      toast(`Bàn ${tableText} đã xác nhận đơn`, { icon: '🔥' });
     };
 
     const handleItemReady = (data) => {
       if (!user || !['admin', 'waiter'].includes(user.role)) return;
       playNotificationSound();
-      const tableText = data.tableNumber ? `bàn ${data.tableNumber}` : 'mang về';
-      speakNotification(`Món ${data.itemName} đã chuẩn bị xong cho ${tableText}.`);
-      toast.success(`Món ${data.itemName} ĐÃ XONG! Mời phục vụ!`, { icon: '🏃' });
-    };
-
-    const handleItemStatusChanged = (data) => {
-      if (data.status === 'ready') {
-        if (!user || !['admin', 'waiter'].includes(user.role)) return;
-        playNotificationSound();
-        speakNotification(`Món ${data.itemName} đã sẵn sàng.`);
-        toast.success(`Món ${data.itemName} đã sẵn sàng!`);
-      } else if (data.status === 'cancelled') {
-        if (!user || !['admin', 'waiter'].includes(user.role)) return;
-        playNotificationSound();
-        speakNotification(`Món ${data.itemName} đã bị hủy.`);
-        toast.error(`Món ${data.itemName} đã bị hủy!`, { icon: '🚫' });
-      }
+      const tableText = data.tableNumber || 'mang về';
+      speakNotification(`Bàn ${tableText} món ${data.itemName} đã xong.`);
+      toast.success(`Bàn ${tableText} món ${data.itemName} đã xong`, { icon: '🏃' });
     };
 
     const handleWaiterCall = (data) => {
       if (!user || !['admin', 'waiter'].includes(user.role)) return;
       playNotificationSound();
-      speakNotification(`Bàn ${data.tableNumber} đang gọi phục vụ.`);
-      toast(`Bàn ${data.tableNumber} đang gọi phục vụ!`, { 
+      speakNotification(`Bàn ${data.tableNumber} gọi phục vụ.`);
+      toast(`Bàn ${data.tableNumber} gọi phục vụ`, { 
         icon: '🔔',
         duration: 8000,
         style: {
@@ -114,28 +100,49 @@ function GlobalSocketListener() {
 
     const handleOrderUpdated = (data) => {
       if (data.reason === 'item_added') {
-        if (!user || !['admin', 'waiter'].includes(user.role)) return;
+        if (!user) return;
+        const isWaiter = ['admin', 'waiter'].includes(user.role);
+        const isKitchen = ['admin', 'kitchen'].includes(user.role);
+        if (!isWaiter && !isKitchen) return;
+
         playNotificationSound();
-        speakNotification(`Bàn ${data.tableNumber || 'N/A'} vừa gọi thêm món ${data.itemName || 'món mới'}.`);
-        toast(`Bàn ${data.tableNumber || 'N/A'} vừa gọi thêm món: ${data.itemName || 'món mới'}`, {
-          icon: '📝',
-          duration: 6000,
-          style: {
-            border: '2px solid #3b82f6',
-            padding: '16px',
-            color: '#1e3a8a',
-            fontWeight: 'bold',
-            background: '#dbeafe'
-          }
-        });
+        const tableText = data.tableNumber || 'mang về';
+        if (isWaiter) {
+          speakNotification(`Bàn ${tableText} gọi thêm món ${data.itemName || 'món mới'}.`);
+          toast(`Bàn ${tableText} gọi thêm món: ${data.itemName || 'món mới'}`, {
+            icon: '📝',
+            duration: 6000,
+            style: {
+              border: '2px solid #3b82f6',
+              padding: '16px',
+              color: '#1e3a8a',
+              fontWeight: 'bold',
+              background: '#dbeafe'
+            }
+          });
+        } else if (isKitchen) {
+          speakNotification(`Bàn ${tableText} thêm món mới ${data.itemName || 'món mới'}.`);
+          toast(`Bàn ${tableText} thêm món mới: ${data.itemName || 'món mới'}`, {
+            icon: '🔥',
+            duration: 6000,
+            style: {
+              border: '2px solid #f97316',
+              padding: '16px',
+              color: '#7c2d12',
+              fontWeight: 'bold',
+              background: '#ffedd5'
+            }
+          });
+        }
       }
     };
 
     const handlePaymentRequested = (data) => {
       if (!user || !['admin', 'waiter'].includes(user.role)) return;
       playNotificationSound();
-      speakNotification(`Bàn ${data.tableNumber || 'N/A'} yêu cầu thanh toán.`);
-      toast(`Bàn ${data.tableNumber || 'N/A'} yêu cầu thanh toán cho đơn #${data.orderNumber.slice(-6)}!`, {
+      const tableText = data.tableNumber || 'N/A';
+      speakNotification(`Bàn ${tableText} yêu cầu thanh toán.`);
+      toast(`Bàn ${tableText} yêu cầu thanh toán`, {
         icon: '💰',
         duration: 8000,
         style: {
@@ -152,18 +159,9 @@ function GlobalSocketListener() {
       if (data.paymentStatus === 'paid') {
         if (!user || !['admin', 'waiter'].includes(user.role)) return;
         playNotificationSound();
-        const tableText = data.tableNumber ? `Bàn ${data.tableNumber}` : 'Đơn hàng';
-        const amountText = data.amount 
-          ? `thanh toán thành công ${Math.round(data.amount / 1000)} nghìn đồng`
-          : 'đã thanh toán thành công';
-        speakNotification(`${tableText} ${amountText}.`);
-        
-        const amountFmt = data.amount ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(data.amount) : '';
-        const message = data.orderNumber && data.amount 
-          ? `Đơn hàng #${data.orderNumber} vừa được thanh toán ${amountFmt}!`
-          : `Đơn hàng đã được thanh toán thành công!`;
-          
-        toast.success(message, {
+        const tableText = data.tableNumber || 'mang về';
+        speakNotification(`Bàn ${tableText} đã thanh toán.`);
+        toast.success(`Bàn ${tableText} đã thanh toán`, {
           icon: '💰',
           duration: 8000
         });
@@ -171,9 +169,8 @@ function GlobalSocketListener() {
     };
 
     socket.on('order_placed', handleOrderPlaced);
-    socket.on('new_order', handleNewOrder);
+    socket.on('order_confirmed', handleOrderConfirmed);
     socket.on('item_ready', handleItemReady);
-    socket.on('item_status_changed', handleItemStatusChanged);
     socket.on('waiter_call', handleWaiterCall);
     socket.on('order_updated', handleOrderUpdated);
     socket.on('payment_requested', handlePaymentRequested);
@@ -181,9 +178,8 @@ function GlobalSocketListener() {
 
     return () => {
       socket.off('order_placed', handleOrderPlaced);
-      socket.off('new_order', handleNewOrder);
+      socket.off('order_confirmed', handleOrderConfirmed);
       socket.off('item_ready', handleItemReady);
-      socket.off('item_status_changed', handleItemStatusChanged);
       socket.off('waiter_call', handleWaiterCall);
       socket.off('order_updated', handleOrderUpdated);
       socket.off('payment_requested', handlePaymentRequested);

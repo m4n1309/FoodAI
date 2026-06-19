@@ -92,12 +92,6 @@ const Sidebar = ({ isOpen, onClose }) => {
       icon: UserGroupIcon,
       roles: ['admin'],
     },
-    {
-      name: 'Cài đặt',
-      href: '/admin/settings',
-      icon: CogIcon,
-      roles: ['admin'],
-    },
   ];
 
   const filteredNavigation = navigation.filter((item) =>

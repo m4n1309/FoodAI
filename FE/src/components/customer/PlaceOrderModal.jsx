@@ -126,7 +126,7 @@ const PlaceOrderModal = ({ open, onClose, cart, onSuccess, onUpdateQty, onUpdate
         customerNote: customerNote.trim() || undefined,
         promotionCode: (promotionCode.trim() && tentativeDiscount > 0) ? promotionCode.trim() : undefined
       });
-      toast.success('Đặt món thành công! 🎉');
+      toast.success('Đơn đặt thành công!');
       
       if (customerPhone.trim()) {
         localStorage.setItem('foodai_customer', JSON.stringify({
