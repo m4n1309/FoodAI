@@ -105,7 +105,7 @@ const MenuItemDetailModal = ({ open, onClose, menuItem, onAddToCart, customer, o
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full sm:max-w-4xl transform overflow-hidden bg-white text-left align-middle shadow-2xl transition-all sm:rounded-[2rem] flex flex-col md:flex-row max-h-[100dvh] sm:max-h-[90vh]">
+              <Dialog.Panel className="w-full sm:max-w-4xl transform overflow-hidden bg-white text-left align-middle shadow-2xl transition-all sm:rounded-[2rem] flex flex-col md:flex-row h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[90vh]">
                 
                 <button
                   onClick={onClose}
@@ -115,7 +115,7 @@ const MenuItemDetailModal = ({ open, onClose, menuItem, onAddToCart, customer, o
                 </button>
 
                 {/* Left Side: Image */}
-                <div className="md:w-1/2 relative bg-gray-100 h-64 md:h-auto shrink-0">
+                <div className="md:w-1/2 relative bg-gray-100 h-48 sm:h-64 md:h-auto shrink-0">
                    <ImageWithFallback 
                      src={menuItem.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop"} 
                      alt={menuItem.name} 
@@ -124,7 +124,7 @@ const MenuItemDetailModal = ({ open, onClose, menuItem, onAddToCart, customer, o
                 </div>
 
                 {/* Right Side: Content */}
-                <div className="md:w-1/2 flex flex-col h-full bg-[#fffcfb] overflow-hidden">
+                <div className="md:w-1/2 flex flex-col flex-1 min-h-0 bg-[#fffcfb] overflow-hidden md:h-auto">
                    {/* Scrollable area */}
                    <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
                       <div className="flex justify-between items-start mb-2">
