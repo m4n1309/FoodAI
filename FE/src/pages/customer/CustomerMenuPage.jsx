@@ -653,7 +653,7 @@ const CustomerMenuPage = () => {
             </div>
 
             {/* Items Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6">
                {combinedItems.map((it) => (
                  <div
                    key={it.isCombo ? `combo-${it.id}` : `item-${it.id}`}
@@ -669,46 +669,46 @@ const CustomerMenuPage = () => {
                    }}
                  >
                    {/* Image Container */}
-                   <div className="h-48 w-full relative overflow-hidden">
+                   <div className="h-32 sm:h-48 w-full relative overflow-hidden">
                       <ImageWithFallback src={it.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop"} alt={it.name} className="w-full h-full object-cover" />
                       {it.isCombo && (
-                        <div className="absolute top-3 left-3 bg-primary-600 text-white text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded">Combo Ưu đãi</div>
+                        <div className="absolute top-2 left-2 bg-primary-600 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded">Combo</div>
                       )}
                    </div>
 
                    {/* Content Container */}
-                   <div className="p-4 flex flex-col flex-1">
-                      <h3 className="text-lg font-black text-gray-900 line-clamp-1 mb-1">{it.name}</h3>
+                   <div className="p-3 sm:p-4 flex flex-col flex-1">
+                      <h3 className="text-sm sm:text-lg font-black text-gray-900 line-clamp-1 mb-1">{it.name}</h3>
 
                       <div className="flex items-center gap-1 mb-2">
                         {it.rating && it.rating.reviewCount > 0 ? (
                           <>
-                            <span className="flex items-center gap-0.5 text-xs text-amber-500 font-bold">
-                              <StarIcon className="w-3.5 h-3.5 fill-current" />
+                            <span className="flex items-center gap-0.5 text-[10px] sm:text-xs text-amber-500 font-bold">
+                              <StarIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
                               {it.rating.avgRating}
                             </span>
-                            <span className="text-[10px] text-gray-400 font-medium">({it.rating.reviewCount} đánh giá)</span>
+                            <span className="text-[9px] sm:text-[10px] text-gray-400 font-medium">({it.rating.reviewCount})</span>
                           </>
                         ) : (
-                          <span className="text-[10px] text-gray-400 font-medium italic">Chưa có đánh giá</span>
+                          <span className="text-[9px] sm:text-[10px] text-gray-400 font-medium italic">Chưa có đánh giá</span>
                         )}
                       </div>
 
-                      <p className="text-xs text-gray-500 font-medium line-clamp-1 mb-4">{restaurant?.name || 'm4nFood Partner'} • {it.isCombo ? 'Combo' : 'Món lẻ'}</p>
+                      <p className="text-[10px] sm:text-xs text-gray-500 font-medium line-clamp-1 mb-2 sm:mb-4">{restaurant?.name || 'm4nFood Partner'} • {it.isCombo ? 'Combo' : 'Món lẻ'}</p>
                       
-                      <div className="mt-auto flex items-center justify-between">
-                         <div className="flex flex-col">
-                            {it.discountPrice && <span className="text-[10px] text-gray-400 line-through font-medium leading-none">{formatMoney(it.price)}</span>}
-                            <span className="text-lg font-black text-primary-700 leading-none mt-1">{formatMoney(it.discountPrice ?? it.price)}</span>
+                      <div className="mt-auto flex items-center justify-between gap-1">
+                         <div className="flex flex-col min-w-0">
+                            {it.discountPrice && <span className="text-[9px] sm:text-[10px] text-gray-400 line-through font-medium leading-none">{formatMoney(it.price)}</span>}
+                            <span className="text-sm xs:text-base sm:text-lg font-black text-primary-700 leading-none mt-1 truncate">{formatMoney(it.discountPrice ?? it.price)}</span>
                          </div>
                          <button
-                           className="flex h-10 w-10 items-center justify-center rounded-full border border-primary-200 text-primary-600 bg-primary-50 hover:bg-primary-600 hover:text-white transition-colors"
+                           className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-primary-200 text-primary-600 bg-primary-50 hover:bg-primary-600 hover:text-white transition-colors shrink-0"
                            onClick={(e) => {
                              e.stopPropagation();
                              it.isCombo ? handleAddCombo(it.id) : handleAddMenuItem(it.id);
                            }}
                          >
-                           <PlusIcon className="w-5 h-5 stroke-2" />
+                           <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5 stroke-2" />
                          </button>
                       </div>
                    </div>
