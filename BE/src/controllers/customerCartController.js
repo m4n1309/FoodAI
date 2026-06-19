@@ -115,14 +115,6 @@ const placeOrder = async (req, res) => {
         restaurantId: data.order.restaurantId,
         itemCount: (data.order.items || []).length
       });
-      
-      io.to(`kitchen:${data.order.restaurantId}`).emit('new_order', {
-        orderId: data.order.id,
-        orderNumber: data.order.orderNumber,
-        tableId: data.order.tableId,
-        tableNumber,
-        itemCount: (data.order.items || []).length
-      });
     }
 
     return successResponse(res, data, 'Order placed successfully', StatusCodes.CREATED);

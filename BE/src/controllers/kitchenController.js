@@ -30,7 +30,7 @@ const getActiveOrders = async (req, res) => {
 
 const updateItemStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, cancelledReason } = req.body;
     const itemId = req.params.id;
     const staffId = req.staff.id;
 
@@ -53,17 +53,24 @@ const updateItemStatus = async (req, res) => {
       });
 
       if (updatedItem.itemStatus === 'ready') {
+         const db = (await import('../models/index.js')).default;
+         const order = await db.Order.findByPk(updatedItem.orderId, { include: ['table'] });
+         const tableNumber = order?.table?.tableNumber || 'mang về';
+
          io.to(`waiter:${req.staff.restaurantId}`).emit('item_ready', {
             itemId: updatedItem.id,
             orderId: updatedItem.orderId,
-            itemName: updatedItem.itemName
+            itemName: updatedItem.itemName,
+            tableNumber
          });
       }
 
       // 2. Notify specific order room (for Customer Tracking UI)
       io.to(`order:${updatedItem.orderId}`).emit('item_status_changed', {
         itemId: updatedItem.id,
-        status: updatedItem.itemStatus
+        itemName: updatedItem.itemName,
+        status: updatedItem.itemStatus,
+        cancelledReason: cancelledReason || 'Hết món'
       });
     }
 

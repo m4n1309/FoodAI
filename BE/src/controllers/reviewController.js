@@ -15,7 +15,7 @@ export const createReview = async (req, res) => {
 
     let finalCustomerId = customerId;
 
-    // Handle customer loyalty points and order attribution if phone is provided
+    // Handle customer attribution if phone is provided
     if (customerPhone) {
       let customer = await db.Customer.findOne({ where: { phone: customerPhone } });
       if (!customer) {
@@ -23,37 +23,16 @@ export const createReview = async (req, res) => {
       }
       finalCustomerId = customer.id;
 
-      // Add 100 loyalty points for the act of reviewing
-      let pointsToAdd = 100;
-      let ordersToAdd = 0;
-      let spentToAdd = 0;
-
-      // Retroactively link order and update stats if this was a guest order
       if (orderId) {
         const order = await db.Order.findByPk(orderId);
-        if (order && order.orderStatus === 'completed') {
-           // If order belongs to no one (guest), attribute it to this customer
-           if (!order.customerId) {
-             await order.update({ customerId: finalCustomerId, customerPhone });
-             
-             // Calculate points from order amount: 1 point per 10,000 VND
-             const orderPoints = Math.floor(Number(order.totalAmount || 0) / 10000);
-             pointsToAdd += orderPoints;
-             ordersToAdd = 1;
-             spentToAdd = Number(order.totalAmount || 0);
-           }
-        } else if (order && order.orderStatus !== 'completed') {
+        if (order && order.orderStatus !== 'completed') {
            return errorResponse(res, 'Can only review completed orders', StatusCodes.BAD_REQUEST);
         }
+        if (order && !order.customerId) {
+           await order.update({ customerId: finalCustomerId, customerPhone });
+        }
       }
-
-      await customer.update({
-        loyaltyPoints: (customer.loyaltyPoints || 0) + pointsToAdd,
-        totalOrders: (customer.totalOrders || 0) + ordersToAdd,
-        totalSpent: Number(customer.totalSpent || 0) + spentToAdd
-      });
     } else if (orderId) {
-        // Fallback for when no phone is provided but orderId is
         const order = await db.Order.findByPk(orderId);
         if (!order || order.orderStatus !== 'completed') {
             return errorResponse(res, 'Can only review completed orders', StatusCodes.BAD_REQUEST);
@@ -96,11 +75,6 @@ export const createMenuItemReview = async (req, res) => {
         customer = await db.Customer.create({ phone: customerPhone, fullName: customerName || 'Khách hàng' });
       }
       finalCustomerId = customer.id;
-
-      // Add 10 points for reviewing a dish
-      await customer.update({
-        loyaltyPoints: (customer.loyaltyPoints || 0) + 10
-      });
     }
 
     const itemReview = await db.MenuItemReview.create({

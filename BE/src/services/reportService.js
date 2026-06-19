@@ -1,13 +1,52 @@
 import db from '../models/index.js';
 import { Op } from 'sequelize';
 
+// Helper to get boundaries in Vietnam timezone (+7) converted to UTC Dates
+const getTzBoundaries = (timezoneOffsetHours = 7) => {
+  const now = new Date();
+  const tzTime = new Date(now.getTime() + timezoneOffsetHours * 60 * 60 * 1000);
+  
+  const startOfTodayTz = new Date(tzTime);
+  startOfTodayTz.setUTCHours(0, 0, 0, 0);
+  const endOfTodayTz = new Date(tzTime);
+  endOfTodayTz.setUTCHours(23, 59, 59, 999);
+  
+  const startOfToday = new Date(startOfTodayTz.getTime() - timezoneOffsetHours * 60 * 60 * 1000);
+  const endOfToday = new Date(endOfTodayTz.getTime() - timezoneOffsetHours * 60 * 60 * 1000);
+  
+  const yesterdayTz = new Date(tzTime);
+  yesterdayTz.setDate(yesterdayTz.getDate() - 1);
+  
+  const startOfYesterdayTz = new Date(yesterdayTz);
+  startOfYesterdayTz.setUTCHours(0, 0, 0, 0);
+  const endOfYesterdayTz = new Date(yesterdayTz);
+  endOfYesterdayTz.setUTCHours(23, 59, 59, 999);
+  
+  const startOfYesterday = new Date(startOfYesterdayTz.getTime() - timezoneOffsetHours * 60 * 60 * 1000);
+  const endOfYesterday = new Date(endOfYesterdayTz.getTime() - timezoneOffsetHours * 60 * 60 * 1000);
+  
+  return { startOfToday, endOfToday, startOfYesterday, endOfYesterday };
+};
+
+// Helper to convert local date strings (YYYY-MM-DD) to UTC boundaries
+const convertLocalDatesToUtcBoundaries = (fromDateStr, toDateStr, timezoneOffsetHours = 7) => {
+  const startLocal = new Date(`${fromDateStr}T00:00:00.000Z`);
+  const endLocal = new Date(`${toDateStr}T23:59:59.999Z`);
+  
+  const startUtc = new Date(startLocal.getTime() - timezoneOffsetHours * 60 * 60 * 1000);
+  const endUtc = new Date(endLocal.getTime() - timezoneOffsetHours * 60 * 60 * 1000);
+  
+  return { startUtc, endUtc };
+};
+
 const getRevenueReport = async ({ restaurantId, from, to, group_by = 'day', tableId, staffId }) => {
+  const { startUtc, endUtc } = convertLocalDatesToUtcBoundaries(from, to);
   const where = {
     restaurantId,
     orderStatus: 'completed',
     paymentStatus: 'paid',
     completedAt: {
-      [Op.between]: [from, `${to} 23:59:59`]
+      [Op.between]: [startUtc, endUtc]
     }
   };
 
@@ -88,12 +127,13 @@ const getRevenueReport = async ({ restaurantId, from, to, group_by = 'day', tabl
 };
 
 const getPopularItems = async ({ restaurantId, from, to, categoryId, limit = 10 }) => {
+  const { startUtc, endUtc } = convertLocalDatesToUtcBoundaries(from, to);
   const whereOrder = {
     restaurantId,
     orderStatus: 'completed',
     paymentStatus: 'paid',
     completedAt: {
-      [Op.between]: [from, `${to} 23:59:59`]
+      [Op.between]: [startUtc, endUtc]
     }
   };
 
@@ -168,16 +208,7 @@ const getPopularItems = async ({ restaurantId, from, to, categoryId, limit = 10 
 };
 
 const getDashboardStats = async ({ restaurantId }) => {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
-
-  // 6. Trends: Yesterday vs Today comparison
-  const startOfYesterday = new Date(startOfToday);
-  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-  const endOfYesterday = new Date(endOfToday);
-  endOfYesterday.setDate(endOfYesterday.getDate() - 1);
+  const { startOfToday, endOfToday, startOfYesterday, endOfYesterday } = getTzBoundaries();
 
   // Execute all 8 queries in parallel
   const [
@@ -308,7 +339,7 @@ const getDashboardStats = async ({ restaurantId }) => {
       itemCount: order.items ? order.items.filter(i => i.itemStatus !== 'cancelled').length : 0,
       totalAmount: parseFloat(order.totalAmount || 0),
       orderStatus: order.orderStatus,
-      createdAt: order.created_at
+      createdAt: order.createdAt || order.created_at
     }))
   };
 };

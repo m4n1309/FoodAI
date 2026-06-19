@@ -369,7 +369,8 @@ const placeOrder = async ({ sessionId, orderId, customerName, customerPhone, cus
       customerName: name || null,
       customerPhone: phone || null,
       customerNote: (customerNote || '').trim() || null,
-      customerId: finalCustomerId || null
+      customerId: finalCustomerId || null,
+      createdAt: new Date()
     }, { transaction });
 
     // Try calling the total-calculation stored procedure if it exists

@@ -118,9 +118,7 @@ const updateOrderStatus = async ({ id, restaurantId, status, cancelledReason, st
             const pointsEarned = Math.floor(Number(order.totalAmount || 0) / 10000);
             
             await customer.update({
-                loyaltyPoints: (customer.loyaltyPoints || 0) + pointsEarned,
-                totalOrders: (customer.totalOrders || 0) + 1,
-                totalSpent: Number(customer.totalSpent || 0) + Number(order.totalAmount || 0)
+                loyaltyPoints: (customer.loyaltyPoints || 0) + pointsEarned
             });
         }
     }
