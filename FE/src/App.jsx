@@ -47,7 +47,7 @@ function AdminIndexRedirect() {
 import { useEffect } from 'react';
 import { useSocket } from './hooks/useSocket.js';
 import toast from 'react-hot-toast';
-import { playNotificationSound, speakNotification } from './utils/sound.js';
+import { playNotificationSound } from './utils/sound.js';
 
 function GlobalSocketListener() {
   const socket = useSocket();
@@ -70,7 +70,6 @@ function GlobalSocketListener() {
       if (!user || !['admin', 'waiter'].includes(user.role)) return;
       playNotificationSound();
       const tableText = data.tableNumber || 'mang về';
-      speakNotification(`Bàn ${tableText} có đơn hàng mới.`);
       toast('Bàn ' + tableText + ' có đơn hàng mới', { icon: '🔔' });
     };
 
@@ -78,7 +77,6 @@ function GlobalSocketListener() {
       if (!user || !['admin', 'kitchen'].includes(user.role)) return;
       playNotificationSound();
       const tableText = data.tableNumber || 'mang về';
-      speakNotification(`Bàn ${tableText} đã xác nhận đơn.`);
       toast(`Bàn ${tableText} đã xác nhận đơn`, { icon: '🔥' });
     };
 
@@ -86,14 +84,12 @@ function GlobalSocketListener() {
       if (!user || !['admin', 'waiter'].includes(user.role)) return;
       playNotificationSound();
       const tableText = data.tableNumber || 'mang về';
-      speakNotification(`Bàn ${tableText} món ${data.itemName} đã xong.`);
       toast.success(`Bàn ${tableText} món ${data.itemName} đã xong`, { icon: '🏃' });
     };
 
     const handleWaiterCall = (data) => {
       if (!user || !['admin', 'waiter'].includes(user.role)) return;
       playNotificationSound();
-      speakNotification(`Bàn ${data.tableNumber} gọi phục vụ.`);
       toast(`Bàn ${data.tableNumber} gọi phục vụ`, { 
         icon: '🔔',
         duration: 8000,
@@ -117,7 +113,6 @@ function GlobalSocketListener() {
         playNotificationSound();
         const tableText = data.tableNumber || 'mang về';
         if (isWaiter) {
-          speakNotification(`Bàn ${tableText} gọi thêm món ${data.itemName || 'món mới'}.`);
           toast(`Bàn ${tableText} gọi thêm món: ${data.itemName || 'món mới'}`, {
             icon: '📝',
             duration: 6000,
@@ -130,7 +125,6 @@ function GlobalSocketListener() {
             }
           });
         } else if (isKitchen) {
-          speakNotification(`Bàn ${tableText} thêm món mới ${data.itemName || 'món mới'}.`);
           toast(`Bàn ${tableText} thêm món mới: ${data.itemName || 'món mới'}`, {
             icon: '🔥',
             duration: 6000,
@@ -150,7 +144,6 @@ function GlobalSocketListener() {
       if (!user || !['admin', 'waiter'].includes(user.role)) return;
       playNotificationSound();
       const tableText = data.tableNumber || 'N/A';
-      speakNotification(`Bàn ${tableText} yêu cầu thanh toán.`);
       toast(`Bàn ${tableText} yêu cầu thanh toán`, {
         icon: '💰',
         duration: 8000,
@@ -169,7 +162,6 @@ function GlobalSocketListener() {
         if (!user || !['admin', 'waiter'].includes(user.role)) return;
         playNotificationSound();
         const tableText = data.tableNumber || 'mang về';
-        speakNotification(`Bàn ${tableText} đã thanh toán.`);
         toast.success(`Bàn ${tableText} đã thanh toán`, {
           icon: '💰',
           duration: 8000
