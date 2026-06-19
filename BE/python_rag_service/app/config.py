@@ -30,7 +30,7 @@ class Settings:
 
     # RAG parameters
     top_k_retrieval: int = int(os.getenv("RAG_TOP_K_RETRIEVAL", "10"))
-    top_k_rerank: int = int(os.getenv("RAG_TOP_K_RERANK", "3"))
+    top_k_rerank: int = int(os.getenv("RAG_TOP_K_RERANK", "8"))
     chunk_size: int = int(os.getenv("RAG_CHUNK_SIZE", "512"))
     chunk_overlap: int = int(os.getenv("RAG_CHUNK_OVERLAP", "64"))
     max_new_tokens: int = int(os.getenv("RAG_MAX_NEW_TOKENS", "512"))
