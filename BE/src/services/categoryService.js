@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import { StatusCodes } from 'http-status-codes';
 import { ServiceError } from './serviceError.js';
 import { deleteCache } from '../config/redis.js';
+import { triggerRAGSync } from './ragService.js';
 
 const generateSlug = (name) => {
   return name
@@ -135,6 +136,7 @@ const createCategory = async ({ body, staff }) => {
   });
 
   await deleteCache(`restaurant:data:${restaurantId}`);
+  triggerRAGSync(restaurantId);
   return category;
 };
 
@@ -176,6 +178,7 @@ const updateCategory = async ({ id, body, staffRestaurantId }) => {
 
   await category.update(updateData);
   await deleteCache(`restaurant:data:${category.restaurantId}`);
+  triggerRAGSync(category.restaurantId);
   return category;
 };
 
@@ -204,6 +207,7 @@ const deleteCategory = async ({ id, staffRestaurantId }) => {
 
   await category.destroy();
   await deleteCache(`restaurant:data:${category.restaurantId}`);
+  triggerRAGSync(category.restaurantId);
 };
 
 const toggleCategoryStatus = async ({ id, staffRestaurantId }) => {
@@ -223,6 +227,7 @@ const toggleCategoryStatus = async ({ id, staffRestaurantId }) => {
   });
 
   await deleteCache(`restaurant:data:${category.restaurantId}`);
+  triggerRAGSync(category.restaurantId);
   return category;
 };
 
@@ -251,6 +256,7 @@ const reorderCategories = async ({ categoryIds, staffRestaurantId }) => {
 
   await Promise.all(updatePromises);
   await deleteCache(`restaurant:data:${staffRestaurantId}`);
+  triggerRAGSync(staffRestaurantId);
 };
 
 export default {

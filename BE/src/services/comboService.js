@@ -3,6 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import { ServiceError } from './serviceError.js';
 import { Op } from 'sequelize';
 import { deleteCache } from '../config/redis.js';
+import { triggerRAGSync } from './ragService.js';
 
 const generateSlug = (name) => {
   return name
@@ -92,6 +93,7 @@ const createCombo = async ({ body, staffRestaurantId }) => {
     }
 
     await deleteCache(`restaurant:data:${restaurantId}`);
+    triggerRAGSync(restaurantId);
 
     return await db.Combo.findByPk(combo.id, {
       include: [{
@@ -140,6 +142,7 @@ const updateCombo = async ({ id, body, staffRestaurantId }) => {
     }
 
     await deleteCache(`restaurant:data:${combo.restaurantId}`);
+    triggerRAGSync(combo.restaurantId);
 
     return await db.Combo.findByPk(id, {
       include: [{
@@ -165,6 +168,7 @@ const deleteCombo = async ({ id, staffRestaurantId }) => {
     await db.ComboItem.destroy({ where: { comboId: id }, transaction: t });
     await combo.destroy({ transaction: t });
     await deleteCache(`restaurant:data:${combo.restaurantId}`);
+    triggerRAGSync(combo.restaurantId);
   });
 };
 
@@ -176,6 +180,7 @@ const toggleAvailability = async ({ id, staffRestaurantId }) => {
 
   await combo.update({ isAvailable: !combo.isAvailable });
   await deleteCache(`restaurant:data:${combo.restaurantId}`);
+  triggerRAGSync(combo.restaurantId);
   return combo;
 };
 

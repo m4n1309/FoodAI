@@ -3,6 +3,7 @@ import db from '../models/index.js';
 import { StatusCodes } from 'http-status-codes';
 import { ServiceError } from './serviceError.js';
 import { deleteCache } from '../config/redis.js';
+import { triggerRAGSync } from './ragService.js';
 
 const generateSlug = (name) => {
   return name
@@ -215,6 +216,7 @@ const createMenuItem = async ({ body, staffRestaurantId }) => {
   });
 
   await deleteCache(`restaurant:data:${restaurantId}`);
+  triggerRAGSync(restaurantId);
 
   return db.MenuItem.findByPk(menuItem.id, {
     include: [{
@@ -273,6 +275,7 @@ const updateMenuItem = async ({ id, updateData, staffRestaurantId }) => {
   await menuItem.update(payload);
 
   await deleteCache(`restaurant:data:${menuItem.restaurantId}`);
+  triggerRAGSync(menuItem.restaurantId);
 
   return db.MenuItem.findByPk(menuItem.id, {
     include: [{
@@ -297,6 +300,7 @@ const deleteMenuItem = async ({ id, staffRestaurantId }) => {
 
   await menuItem.destroy();
   await deleteCache(`restaurant:data:${menuItem.restaurantId}`);
+  triggerRAGSync(menuItem.restaurantId);
 };
 
 const toggleMenuItemAvailability = async ({ id, staffRestaurantId }) => {
@@ -313,6 +317,7 @@ const toggleMenuItemAvailability = async ({ id, staffRestaurantId }) => {
 
   await menuItem.update({ isAvailable: !menuItem.isAvailable });
   await deleteCache(`restaurant:data:${menuItem.restaurantId}`);
+  triggerRAGSync(menuItem.restaurantId);
   return menuItem;
 };
 
@@ -330,6 +335,7 @@ const toggleMenuItemFeatured = async ({ id, staffRestaurantId }) => {
 
   await menuItem.update({ isFeatured: !menuItem.isFeatured });
   await deleteCache(`restaurant:data:${menuItem.restaurantId}`);
+  triggerRAGSync(menuItem.restaurantId);
   return menuItem;
 };
 

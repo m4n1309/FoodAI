@@ -44,13 +44,16 @@ class Settings:
             'menu_item' AS source_type,
             CAST(mi.id AS CHAR) AS source_id,
             mi.restaurant_id AS restaurant_id,
-            CONCAT('Món ', mi.name, ' có giá ', mi.price, ' VNĐ. ',
+            CONCAT('Món ', mi.name,
+                   IF(cat.name IS NULL, '', CONCAT(' thuộc danh mục ', cat.name)),
+                   ' có giá ', mi.price, ' VNĐ. ',
                    IF(mi.discount_price IS NULL, '', CONCAT('Giá khuyến mãi: ', mi.discount_price, ' VNĐ. ')),
                    IF(mi.is_spicy = 1, 'Món này có vị cay. ', ''),
                    IF(mi.is_vegetarian = 1, 'Món này phù hợp cho người ăn chay. ', ''),
                    IF(mi.allergens IS NULL, '', CONCAT('Cảnh báo dị ứng: ', mi.allergens, '. ')),
                    IF(mi.description IS NULL, '', CONCAT('Mô tả chi tiết: ', mi.description))) AS content
         FROM menu_items mi
+        LEFT JOIN categories cat ON mi.category_id = cat.id
         WHERE mi.is_available = 1 AND (:restaurant_id IS NULL OR mi.restaurant_id = :restaurant_id)
         UNION ALL
         SELECT
@@ -70,6 +73,20 @@ class Settings:
             ) AS content
         FROM combos c
         WHERE c.is_available = 1 AND (:restaurant_id IS NULL OR c.restaurant_id = :restaurant_id)
+        UNION ALL
+        SELECT
+            'promotion' AS source_type,
+            CAST(p.id AS CHAR) AS source_id,
+            p.restaurant_id AS restaurant_id,
+            CONCAT('Chương trình khuyến mãi: ', p.name, 
+                   ' (Mã code: ', p.code, '). ',
+                   IF(p.description IS NULL, '', CONCAT('Mô tả chương trình: ', p.description, '. ')),
+                   'Giảm ', IF(p.discount_type = 'percentage', CONCAT(p.discount_value, '%'), CONCAT(p.discount_value, ' VNĐ')),
+                   IF(p.min_order_amount IS NULL, '', CONCAT(' cho đơn hàng tối thiểu từ ', p.min_order_amount, ' VNĐ.')),
+                   ' Khuyến mãi áp dụng từ ngày ', DATE_FORMAT(p.valid_from, '%d/%m/%Y'), 
+                   ' đến ngày ', DATE_FORMAT(p.valid_until, '%d/%m/%Y'), '.') AS content
+        FROM promotions p
+        WHERE p.is_active = 1 AND (:restaurant_id IS NULL OR p.restaurant_id = :restaurant_id)
         """,
     )
 

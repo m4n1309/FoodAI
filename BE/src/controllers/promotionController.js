@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import { successResponse, errorResponse, notFoundResponse } from '../utils/ResponseHelper.js';
 import db from '../models/index.js';
 import { Op } from 'sequelize';
+import { triggerRAGSync } from '../services/ragService.js';
 
 // --- ADMIN / MANAGER ENDPOINTS ---
 
@@ -37,6 +38,7 @@ export const createPromotion = async (req, res) => {
     const restaurantId = req.staff.restaurantId;
     const data = { ...req.body, restaurantId };
     const promotion = await db.Promotion.create(data);
+    triggerRAGSync(restaurantId);
     return successResponse(res, promotion, 'Promotion created successfully', StatusCodes.CREATED);
   } catch (error) {
     console.error(error);
@@ -56,6 +58,7 @@ export const updatePromotion = async (req, res) => {
     if (!promotion) return notFoundResponse(res, 'Promotion not found');
     
     await promotion.update(req.body);
+    triggerRAGSync(restaurantId);
     return successResponse(res, promotion, 'Promotion updated successfully');
   } catch (error) {
     console.error(error);
@@ -75,6 +78,7 @@ export const deletePromotion = async (req, res) => {
     if (!promotion) return notFoundResponse(res, 'Promotion not found');
     
     await promotion.destroy();
+    triggerRAGSync(restaurantId);
     return successResponse(res, null, 'Promotion deleted successfully');
   } catch (error) {
     console.error(error);
