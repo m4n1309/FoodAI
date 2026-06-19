@@ -14,8 +14,20 @@ const sendEmail = async ({ to, subject, html }) => {
 
   let transporter;
 
-  // 1. Check if Gmail OAuth2 Credentials are set
-  if (clientId && clientSecret && refreshToken && user) {
+  // 1. Check if Standard SMTP Credentials are set (explicitly requested by providing pass)
+  if (host && user && pass) {
+    transporter = nodemailer.createTransport({
+      host,
+      port: Number(port) || 587,
+      secure: Number(port) === 465,
+      auth: {
+        user,
+        pass
+      }
+    });
+  }
+  // 2. Check if Gmail OAuth2 Credentials are set
+  else if (clientId && clientSecret && refreshToken && user) {
     transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -24,18 +36,6 @@ const sendEmail = async ({ to, subject, html }) => {
         clientId,
         clientSecret,
         refreshToken
-      }
-    });
-  }
-  // 2. Check if Standard SMTP Credentials are set
-  else if (host && user && pass) {
-    transporter = nodemailer.createTransport({
-      host,
-      port: Number(port) || 587,
-      secure: Number(port) === 465,
-      auth: {
-        user,
-        pass
       }
     });
   }
