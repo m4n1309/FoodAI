@@ -19,8 +19,14 @@ app.add_middleware(
 @app.on_event("startup")
 def startup() -> None:
     rag_engine.initialize()
-    print("Auto-ingesting data into RAG index...")
-    rag_engine.ingest(restaurant_id=None)
+    if not getattr(rag_engine, "_chunk_records", None):
+        print("Index is empty. Auto-ingesting data into RAG index...")
+        try:
+            rag_engine.ingest(restaurant_id=None)
+        except Exception as exc:
+            print(f"Warning: Failed to auto-ingest on startup: {exc}")
+    else:
+        print(f"RAG index initialized successfully with {len(rag_engine._chunk_records)} chunks.")
 
 
 @app.get("/health")
