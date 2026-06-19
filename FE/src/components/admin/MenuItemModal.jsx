@@ -48,6 +48,7 @@ const MenuItemModal = ({ isOpen, onClose, menuItem, onSubmit, loading }) => {
         const response = await categoryApi.getAll({
           restaurantId: user?.restaurantId,
           isActive: true,
+          limit: 100,
         });
         setCategories(response.data.categories || []);
       } catch (error) {

@@ -33,7 +33,8 @@ const getAllMenuItems = async (req, res) => {
       page: data.page,
       limit: data.limit,
       totalPages: data.totalPages,
-      menuItems: data.menuItems
+      menuItems: data.menuItems,
+      stats: data.stats
     }, 'Menu items retrieved successfully');
   } catch (error) {
     return handleServiceError(res, error, 'Failed to retrieve menu items');

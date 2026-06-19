@@ -71,7 +71,8 @@ const getAllTables = async (req, res) => {
       page: data.page,
       limit: data.limit,
       totalPages: data.totalPages,
-      tables: data.tables
+      tables: data.tables,
+      stats: data.stats
     }, 'Tables retrieved successfully');
   } catch (error) {
     return handleServiceError(res, error, 'Failed to retrieve tables');
