@@ -50,7 +50,43 @@ class RAGEngine:
     def ingest(self, restaurant_id: Optional[int] = None) -> Dict[str, Any]:
         rows = fetch_kb_rows(restaurant_id=restaurant_id)
         chunks = build_chunks(rows)
-        embeddings = self._embed_texts([c["chunk_text"] for c in chunks])
+
+        # Get existing embeddings map to avoid re-embedding unchanged content
+        with engine.begin() as conn:
+            existing_rows = conn.execute(
+                text("SELECT source_type, source_id, chunk_text, embedding FROM rag_chunks")
+            ).mappings().all()
+        existing_map = {}
+        for r in existing_rows:
+            existing_map[(r["source_type"], r["source_id"], r["chunk_text"])] = r["embedding"]
+
+        # Determine which chunks need embedding
+        chunks_to_embed = []
+        for c in chunks:
+            key = (c["source_type"], c["source_id"], c["chunk_text"])
+            if key not in existing_map:
+                chunks_to_embed.append(c)
+
+        # Call Gemini API only for new/changed chunks
+        if chunks_to_embed:
+            new_embeddings = self._embed_texts([c["chunk_text"] for c in chunks_to_embed])
+            # Match them back
+            for idx, c in enumerate(chunks_to_embed):
+                key = (c["source_type"], c["source_id"], c["chunk_text"])
+                existing_map[key] = new_embeddings[idx].astype(np.float32).tobytes()
+
+        # Build the final embeddings list/array in the same order as chunks
+        final_embeddings_list = []
+        for c in chunks:
+            key = (c["source_type"], c["source_id"], c["chunk_text"])
+            emb_bytes = existing_map.get(key)
+            if emb_bytes is not None:
+                vector = np.frombuffer(emb_bytes, dtype=np.float32)
+                final_embeddings_list.append(vector)
+            else:
+                final_embeddings_list.append(np.zeros(settings.embedding_dimension, dtype=np.float32))
+
+        embeddings = np.array(final_embeddings_list, dtype=np.float32)
         inserted = upsert_chunks(chunks, embeddings, restaurant_id)
         self.load_index()
         return {"rows": len(rows), "chunks": inserted}
